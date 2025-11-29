@@ -15,12 +15,12 @@
         <Button
           variant="text"
           icon="pi pi-bell"
-          class="text-white hover:text-primary"
+          class="text-white hover:text-primary active:text-primary"
         />
         <Button
           variant="text"
           icon="pi pi-refresh"
-          class="text-white hover:text-primary"
+          class="text-white hover:text-primary active:text-primary"
         />
       </div>
     </header>
