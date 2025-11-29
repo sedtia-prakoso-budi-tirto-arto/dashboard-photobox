@@ -1,0 +1,17 @@
+@import "tailwindcss";
+@import "tailwindcss-primeui";
+@import "primeicons/primeicons.css";
+
+/* Atur gaya dasar untuk semua tombol PrimeVue */
+.p-button {
+  @apply rounded-2xl;
+}
+
+.neon-input {
+  transition: box-shadow 0.3s ease, transform 0.3s ease;
+}
+/* Efek glow saat hover, focus, dan active */
+.neon-input:focus-within,
+.neon-input:active {
+  box-shadow: 0 0 15px 1px #48cae4; /* warna neon cyan */
+}
