@@ -80,7 +80,10 @@
             <p class="text-gray-600 text-sm">Omset</p>
             <p class="font-bold text-2xl mt-1">Rp 100.000.000</p>
           </div>
-          <img src="/monitor.png" class="h-24 object-cover rounded-lg" />
+          <img
+            src="/monitor.png"
+            class="h-18 md:h-24 object-cover rounded-lg"
+          />
         </div>
       </section>
 
