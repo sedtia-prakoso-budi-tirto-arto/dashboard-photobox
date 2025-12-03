@@ -260,7 +260,7 @@
                   <p class="text-xs font-medium truncate">{{ vid.name }}</p>
 
                   <video
-                    :src="'http://localhost:8000/videos/' + vid"
+                    :src="API_URL + '/videos/' + vid"
                     controls
                     class="rounded-lg w-full aspect-video mt-2 bg-black"
                   />
@@ -292,7 +292,7 @@
 
                     <div class="mt-2 bg-black rounded-lg overflow-hidden">
                       <video
-                        :src="'http://localhost:8000/videos/' + vid"
+                        :src="API_URL + '/videos/' + vid"
                         controls
                         class="w-full aspect-video"
                       ></video>
@@ -376,8 +376,16 @@ const showFullscreen = ref(false);
 const fullscreenVideo = ref(null);
 
 const client = mqtt.connect(import.meta.env.VITE_MQTT_URL, {
+  protocolVersion: 5,
   username: import.meta.env.VITE_MQTT_USERNAME,
   password: import.meta.env.VITE_MQTT_PASSWORD,
+  properties: {
+    sessionExpiryInterval: 15,
+  },
+});
+
+client.on("message", (topic, message) => {
+  console.log("MQTT received:", topic, message.toString());
 });
 
 client.on("connect", () => {
