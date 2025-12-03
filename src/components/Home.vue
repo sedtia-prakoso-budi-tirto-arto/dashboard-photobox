@@ -1,70 +1,73 @@
 <template>
   <div class="min-h-screen bg-[#003A70] text-white flex flex-col">
     <!-- HEADER -->
-    <header class="px-5 py-6 flex items-center justify-between">
+    <header
+      class="px-6 py-5 flex items-center justify-between backdrop-blur-md bg-white/5 border-b border-white/10"
+    >
       <div class="flex items-center gap-3">
         <div
-          class="w-11 h-11 rounded-full bg-white/20 flex items-center justify-center backdrop-blur-sm"
+          class="w-11 h-11 rounded-full bg-white/20 flex items-center justify-center"
         >
           <span class="font-semibold text-sm">HS</span>
         </div>
-        <p class="text-lg font-semibold">HERY SUSILO</p>
+        <p class="text-lg font-semibold tracking-wide">HERY SUSILO</p>
       </div>
 
-      <div class="flex items-center gap-1.5">
+      <div class="flex items-center gap-2">
         <Button
           variant="text"
           icon="pi pi-bell"
-          class="text-primary-200 hover:text-primary active:text-primary"
+          class="text-white/70 hover:text-white"
         />
         <Button
           variant="text"
           icon="pi pi-refresh"
-          class="text-primary-200 hover:text-primary active:text-primary"
+          class="text-white/70 hover:text-white"
         />
       </div>
     </header>
 
-    <!-- CONTENT -->
-    <main class="bg-white rounded-t-3xl p-5 text-black flex-1">
+    <!-- CONTENT WRAPPER -->
+    <main class="bg-white rounded-t-3xl px-6 py-6 text-gray-800 flex-1">
       <!-- TITLE -->
       <section>
-        <div class="flex items-center justify-between mb-5">
-          <h2 class="text-xl font-bold tracking-tight">Jatim Park 3</h2>
+        <div class="flex items-center justify-between mb-6">
+          <h2 class="text-xl font-bold tracking-tight text-gray-900">
+            Jatim Park 3
+          </h2>
+
           <Button
             variant="text"
             icon="pi pi-sliders-h"
             label="Settings"
-            class="text-gray-700"
+            class="text-gray-700 hover:text-primary-600"
             @click="showSettings = true"
           />
         </div>
 
-        <!-- GRID MENU (RESPONSIVE) -->
-        <div class="grid grid-cols-3 sm:grid-cols-5 gap-3 mb-6">
-          <!-- MENU ITEM SEMUA (TERMASUK JARINGAN) -->
+        <!-- GRID MENU -->
+        <div class="grid grid-cols-3 sm:grid-cols-5 gap-4 mb-8">
           <div
             v-for="i in allMenuItems"
             :key="i.label"
             @click="setActiveMenu(i.label)"
             :class="[
-              'flex flex-col items-center p-4 rounded-xl cursor-pointer transition',
+              'flex flex-col items-center py-4 rounded-xl cursor-pointer transition shadow-sm',
               activeMenu === i.label
-                ? 'bg-primary-100 border border-primary-300 shadow scale-105'
-                : 'bg-gray-50 border border-gray-200 hover:bg-gray-100 hover:scale-[1.02]',
+                ? 'bg-primary-50 border border-primary-300 scale-[1.03]'
+                : 'bg-gray-50 border border-gray-200 hover:bg-gray-100 hover:shadow',
             ]"
           >
             <i
               :class="[
-                'pi',
+                'pi text-2xl',
                 i.icon,
-                'text-2xl',
                 activeMenu === i.label ? 'text-primary-700' : 'text-gray-500',
               ]"
-            ></i>
+            />
             <span
               :class="[
-                'text-xs mt-1 font-semibold',
+                'text-xs mt-2 font-semibold',
                 activeMenu === i.label ? 'text-primary-800' : 'text-gray-700',
               ]"
             >
@@ -73,9 +76,29 @@
           </div>
         </div>
 
+        <!-- CONTROL LAMPU -->
+        <div
+          v-if="activeMenu === 'Lampu'"
+          class="mt-6 p-6 bg-gray-100 rounded-xl shadow-sm border"
+        >
+          <h3 class="font-semibold text-lg mb-4">Kontrol Lampu</h3>
+
+          <Button
+            :label="lampOn ? 'Matikan Lampu' : 'Hidupkan Lampu'"
+            :severity="lampOn ? 'danger' : 'success'"
+            icon="pi pi-lightbulb"
+            class="w-full py-3 text-base rounded-lg"
+            @click="toggleLamp"
+          />
+
+          <p class="mt-3 text-sm text-gray-700">
+            Status: <strong>{{ lampOn ? "ON" : "OFF" }}</strong>
+          </p>
+        </div>
+
         <!-- CARD OMSET -->
         <div
-          class="p-5 rounded-xl bg-gray-50 shadow-sm flex justify-between items-center"
+          class="mt-6 p-5 rounded-xl bg-gray-50 border border-gray-200 shadow-sm flex justify-between items-center gap-5"
         >
           <div>
             <p class="text-gray-600 text-sm">Omset</p>
@@ -86,17 +109,17 @@
             autoplay
             playsinline
             muted
-            class="h-18 md:h-24 object-cover rounded-lg bg-black cursor-pointer"
-            style="image-rendering: pixelated; image-rendering: crisp-edges"
+            class="aspect-video h-20 md:h-24 object-contain rounded-lg bg-black cursor-pointer transition"
+            :class="{ 'opacity-50': !hasStream }"
             @click="openFullscreen"
           ></video>
         </div>
       </section>
 
-      <!-- DATA LOG TABLE -->
-      <section class="mt-8">
-        <div class="flex justify-between items-center mb-3">
-          <h2 class="text-xl font-bold">Data Log</h2>
+      <!-- DATA LOG -->
+      <section class="mt-10">
+        <div class="flex justify-between items-center mb-4">
+          <h2 class="text-xl font-bold text-gray-900">Data Log</h2>
         </div>
 
         <DataTable
@@ -104,12 +127,11 @@
           removableSort
           stripedRows
           showGridlines
-          class="rounded-xl overflow-hidden shadow text-sm"
+          class="rounded-xl overflow-hidden shadow text-sm bg-white"
           tableStyle="min-width: 100%"
         >
-          <Column field="tanggal" header="Tanggal & Jam" sortable></Column>
-          <Column field="aktivitas" header="Aktivitas" sortable></Column>
-
+          <Column field="tanggal" header="Tanggal & Jam" sortable />
+          <Column field="aktivitas" header="Aktivitas" sortable />
           <Column field="status" header="Status" sortable>
             <template #body="slotProps">
               <Tag
@@ -122,23 +144,21 @@
         </DataTable>
       </section>
 
-      <!-- SETTINGS MODAL -->
+      <!-- SETTINGS -->
       <Dialog
         v-model:visible="showSettings"
         modal
         header="Pengaturan Sistem"
-        :style="{ width: '1000px', maxWidth: '90%' }"
+        :style="{ width: '900px', maxWidth: '95%' }"
         class="text-sm"
       >
         <div class="flex flex-col gap-6">
-          <!-- GRID 2 KOLOM -->
+          <!-- GRID SETTINGS -->
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <!-- SET DELAY -->
-            <div
-              class="p-4 bg-white rounded-xl shadow-sm border border-gray-200"
-            >
-              <div class="flex items-center gap-2 mb-2">
-                <i class="pi pi-clock text-primary-600"></i>
+            <!-- DELAY -->
+            <div class="p-4 bg-white rounded-xl shadow border">
+              <div class="flex items-center gap-2 mb-2 text-primary-700">
+                <i class="pi pi-clock"></i>
                 <p class="font-semibold text-gray-700">Delay Deteksi</p>
               </div>
 
@@ -149,9 +169,7 @@
                   class="flex-1"
                   inputClass="w-full"
                 />
-                <span class="text-gray-500 text-sm whitespace-nowrap"
-                  >detik</span
-                >
+                <span class="text-gray-500 text-sm">detik</span>
               </div>
 
               <Button
@@ -163,11 +181,9 @@
             </div>
 
             <!-- MIN FACE SIZE -->
-            <div
-              class="p-4 bg-white rounded-xl shadow-sm border border-gray-200"
-            >
-              <div class="flex items-center gap-2 mb-2">
-                <i class="pi pi-user text-primary-600"></i>
+            <div class="p-4 bg-white rounded-xl shadow border">
+              <div class="flex items-center gap-2 mb-2 text-primary-700">
+                <i class="pi pi-user"></i>
                 <p class="font-semibold text-gray-700">Minimum Face Size</p>
               </div>
 
@@ -178,7 +194,7 @@
                   class="flex-1"
                   inputClass="w-full"
                 />
-                <span class="text-gray-500 text-sm whitespace-nowrap">px</span>
+                <span class="text-gray-500 text-sm">px</span>
               </div>
 
               <Button
@@ -190,17 +206,12 @@
             </div>
           </div>
 
-          <!-- VIDEO MANAGEMENT (UPLOAD + LIST + MULTI DELETE) -->
-          <div
-            class="p-5 bg-white rounded-2xl shadow-sm border border-gray-100"
-          >
-            <!-- HEADER -->
+          <!-- VIDEO MANAGEMENT -->
+          <div class="p-5 bg-white rounded-2xl shadow border">
             <div class="flex items-center justify-between mb-5">
               <div class="flex items-center gap-2">
-                <i class="pi pi-video text-primary-600 text-xl"></i>
-                <p class="text-lg font-semibold text-gray-800">
-                  Manajemen Video
-                </p>
+                <i class="pi pi-video text-primary-700 text-xl"></i>
+                <p class="text-lg font-semibold">Manajemen Video</p>
               </div>
 
               <Button
@@ -209,18 +220,17 @@
                 severity="danger"
                 outlined
                 icon="pi pi-trash"
-                class="!py-2 !px-3"
                 @click="deleteAllVideos"
               />
             </div>
 
             <!-- UPLOAD BOX -->
             <div
-              class="rounded-xl border border-gray-300 border-dashed p-6 text-center bg-gray-50 hover:bg-gray-100 transition cursor-pointer"
+              class="rounded-xl border border-gray-300 border-dashed p-6 text-center bg-gray-50 hover:bg-gray-100 cursor-pointer transition"
               @click="uploadRef.click()"
             >
               <i class="pi pi-upload text-3xl text-gray-500"></i>
-              <p class="mt-2 text-sm text-gray-700 font-medium">
+              <p class="mt-2 text-sm font-medium text-gray-700">
                 Klik untuk memilih video
               </p>
               <p class="text-xs text-gray-500">MP4 / AVI / MOV / MKV</p>
@@ -234,93 +244,72 @@
               @change="onFileSelected"
             />
 
-            <!-- PREVIEW BEFORE UPLOAD -->
+            <!-- PREVIEW -->
             <div v-if="previewUpload.length" class="mt-5">
               <div class="flex items-center justify-between mb-2">
-                <p class="text-gray-800 font-semibold">
-                  Preview Sebelum Upload
-                </p>
-                <Button
-                  label="Upload"
-                  size="small"
-                  class="!py-1 !px-4"
-                  @click="uploadVideos"
-                />
+                <p class="font-semibold">Preview Sebelum Upload</p>
+                <Button label="Upload" size="small" @click="uploadVideos" />
               </div>
 
-              <!-- Grid Preview -->
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div
                   v-for="vid in previewUpload"
                   :key="vid.url"
-                  class="bg-white border border-gray-200 rounded-xl shadow-sm p-3"
+                  class="bg-white border rounded-xl shadow-sm p-3"
                 >
-                  <p class="text-xs font-medium text-gray-700 truncate mb-2">
-                    {{ vid.name }}
-                  </p>
+                  <p class="text-xs font-medium truncate">{{ vid.name }}</p>
+
                   <video
                     :src="'http://localhost:8000/videos/' + vid"
                     controls
-                    class="rounded-lg w-full aspect-video object-contain mt-2 shadow-sm bg-black"
+                    class="rounded-lg w-full aspect-video mt-2 bg-black"
                   />
                 </div>
               </div>
             </div>
 
-            <!-- LIST + MULTI DELETE -->
+            <!-- VIDEO LIST -->
             <div class="mt-8">
-              <p class="text-gray-800 font-semibold mb-3">Daftar Video</p>
+              <p class="font-semibold mb-3">Daftar Video</p>
 
               <div
                 v-if="videoList.length"
                 class="grid grid-cols-1 sm:grid-cols-2 gap-4"
               >
-                <!-- CARD VIDEO -->
                 <div
                   v-for="vid in videoList"
                   :key="vid"
-                  class="bg-gray-50 border border-gray-200 rounded-xl shadow-sm p-4 flex gap-3"
+                  class="bg-gray-50 rounded-xl shadow-sm border p-4 flex gap-3"
                 >
-                  <!-- PRIMEVUE CHECKBOX -->
-                  <div class="flex items-start pt-1">
-                    <Checkbox
-                      v-model="selectedToDelete"
-                      :inputId="'vid-' + vid"
-                      :value="vid"
-                    />
-                  </div>
+                  <Checkbox
+                    v-model="selectedToDelete"
+                    :inputId="'vid-' + vid"
+                    :value="vid"
+                  />
 
-                  <!-- Content -->
-                  <label
-                    :for="'vid-' + vid"
-                    class="flex-1 flex flex-col cursor-pointer"
-                  >
-                    <p class="text-xs font-medium text-gray-800 truncate">
-                      {{ vid }}
-                    </p>
+                  <label :for="'vid-' + vid" class="flex-1 cursor-pointer">
+                    <p class="text-xs font-medium truncate">{{ vid }}</p>
 
                     <div class="mt-2 bg-black rounded-lg overflow-hidden">
                       <video
                         :src="'http://localhost:8000/videos/' + vid"
                         controls
-                        class="w-full aspect-video object-contain"
+                        class="w-full aspect-video"
                       ></video>
                     </div>
                   </label>
                 </div>
               </div>
 
-              <!-- EMPTY STATE -->
               <p v-else class="text-gray-500 text-sm text-center py-4">
                 Belum ada video yang diupload.
               </p>
 
-              <!-- MULTI DELETE BUTTON -->
               <Button
                 v-if="selectedToDelete.length"
                 label="Hapus Video Terpilih"
                 severity="danger"
-                class="w-full mt-5"
+                class="w-full mt-4"
                 icon="pi pi-trash"
                 size="small"
                 @click="deleteSelectedVideos"
@@ -328,10 +317,9 @@
             </div>
           </div>
 
-          <!-- REFRESH -->
           <Button
             label="Refresh Daftar Video"
-            class="w-full mt-1"
+            class="w-full"
             icon="pi pi-refresh"
             size="small"
             outlined
@@ -340,14 +328,13 @@
         </div>
       </Dialog>
 
-      <!-- FULLSCREEN VIDEO MODAL -->
+      <!-- FULLSCREEN VIDEO -->
       <Dialog
         v-model:visible="showFullscreen"
         modal
         :closable="true"
-        :style="{ width: '100vw', maxWidth: '100%', height: '100vh' }"
+        :style="{ width: '100vw', height: '100vh', maxWidth: '100%' }"
         contentStyle="padding:0; height:100vh;"
-        class="fullscreen-video-dialog"
       >
         <video
           ref="fullscreenVideo"
@@ -364,12 +351,17 @@
 <script setup>
 import { ref, onMounted } from "vue";
 import axios from "axios";
+import mqtt from "mqtt";
 
 const API_URL = import.meta.env.VITE_API_URL;
 const SIGNALING_URL = import.meta.env.VITE_SIGNALING_URL;
 
+const hasStream = ref(false);
+
 const showSettings = ref(false);
 const monitorVideo = ref(null);
+
+const lampOn = ref(false);
 
 // Setting states
 const delay = ref(5);
@@ -383,6 +375,31 @@ const previewUpload = ref([]);
 const showFullscreen = ref(false);
 const fullscreenVideo = ref(null);
 
+const client = mqtt.connect(
+  "wss://z25505c1.ala.asia-southeast1.emqxsl.com:8084/mqtt",
+  {
+    username: "s8jtp_kontrol",
+    password: "Pulsotron8?",
+  }
+);
+
+client.on("connect", () => {
+  console.log("MQTT Connected");
+
+  // subscribe jika Anda ingin mendapat feedback
+  client.subscribe("ptb/kontrol");
+});
+
+function toggleLamp() {
+  lampOn.value = !lampOn.value;
+
+  const cmd = lampOn.value ? "lampu on" : "lampu off";
+
+  client.publish("ptb/kontrol", cmd);
+
+  console.log("MQTT send:", cmd);
+}
+
 function openFullscreen() {
   if (!monitorVideo.value?.srcObject) return;
   showFullscreen.value = true;
@@ -394,31 +411,57 @@ function openFullscreen() {
 }
 
 async function initWebRTC() {
-  const clientId = Math.random().toString(36).substring(2);
+  let clientId = localStorage.getItem("screen_client_id");
+  if (!clientId) {
+    clientId = Math.random().toString(36).substring(2);
+    localStorage.setItem("screen_client_id", clientId);
+  }
+
   console.log("[WEB] Initializing WebRTC...");
+
+  // === CLOSE old WebSocket if exists ===
+  if (window.activeSignal) {
+    try {
+      window.activeSignal.close();
+    } catch (e) {}
+  }
 
   const signaling = new WebSocket(SIGNALING_URL);
   signaling.binaryType = "blob";
+  window.activeSignal = signaling;
 
   signaling.onopen = () => {
     console.log("[WEB] Connected to signaling server");
     signaling.send(JSON.stringify({ type: "ready", client_id: clientId }));
   };
 
+  signaling.onclose = () => {
+    console.warn("[WEB] Signaling closed, retrying...");
+    setTimeout(initWebRTC, 1500);
+  };
+
+  // === NEW PeerConnection ===
   const pc = new RTCPeerConnection({
     iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
   });
 
-  // Force high quality video
+  // === CLOSE OLD PEER ===
+  if (window.activePC) {
+    try {
+      window.activePC.close();
+    } catch (e) {}
+  }
+  window.activePC = pc;
+
+  // High quality
   pc.addEventListener("negotiationneeded", async () => {
-    const params = pc.getSenders()[0].getParameters();
+    const params = pc.getSenders()[0]?.getParameters() || {};
     if (!params.encodings) params.encodings = [{}];
 
-    // Set high bitrate
-    params.encodings[0].maxBitrate = 5_000_000; // 5 Mbps HD
+    params.encodings[0].maxBitrate = 5_000_000;
     params.encodings[0].minBitrate = 2_000_000;
     params.encodings[0].maxFramerate = 30;
-    params.encodings[0].scaleResolutionDownBy = 1; // do NOT reduce quality
+    params.encodings[0].scaleResolutionDownBy = 1;
 
     await pc.getSenders()[0].setParameters(params);
   });
@@ -430,46 +473,32 @@ async function initWebRTC() {
     console.log("[WEB] Conn state:", pc.connectionState);
 
   pc.ontrack = (event) => {
-    console.log("[WEB] TRACK RECEIVED:", event);
+    hasStream.value = true;
+    console.log("[WEB] TRACK RECEIVED");
     monitorVideo.value.srcObject = event.streams[0];
   };
 
+  // Handle signaling server messages
   signaling.onmessage = async (msg) => {
-    console.log("[WEB] Raw message:", msg.data);
-
     let payload = msg.data;
-
-    if (payload instanceof Blob) {
-      console.log("[WEB] Converting Blob → text...");
-      payload = await payload.text();
-    }
-
-    console.log("[WEB] Parsed text:", payload);
+    if (payload instanceof Blob) payload = await payload.text();
 
     let data;
     try {
       data = JSON.parse(payload);
-    } catch (e) {
-      console.error("[WEB] JSON PARSE ERROR:", e, payload);
+    } catch {
+      console.error("Malformed message:", payload);
       return;
     }
 
-    console.log("[WEB] Parsed JSON:", data);
-
     if (data.type === "offer") {
-      console.log("[WEB] OFFER received!");
-
       await pc.setRemoteDescription({
         type: "offer",
         sdp: data.sdp,
       });
 
-      console.log("[WEB] Remote SDP set");
-
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
-
-      console.log("[WEB] Sending ANSWER...");
 
       signaling.send(
         JSON.stringify({
@@ -482,8 +511,6 @@ async function initWebRTC() {
     }
 
     if (data.type === "candidate") {
-      console.log("[WEB] Remote CANDIDATE:", data);
-
       await pc.addIceCandidate({
         candidate: data.candidate,
         sdpMid: data.sdpMid,
@@ -493,8 +520,6 @@ async function initWebRTC() {
   };
 
   pc.onicecandidate = (event) => {
-    console.log("[WEB] Browser ICE Candidate:", event.candidate);
-
     if (event.candidate) {
       signaling.send(
         JSON.stringify({
