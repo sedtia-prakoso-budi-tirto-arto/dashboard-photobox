@@ -375,13 +375,10 @@ const previewUpload = ref([]);
 const showFullscreen = ref(false);
 const fullscreenVideo = ref(null);
 
-const client = mqtt.connect(
-  "wss://z25505c1.ala.asia-southeast1.emqxsl.com:8084/mqtt",
-  {
-    username: "s8jtp_kontrol",
-    password: "Pulsotron8?",
-  }
-);
+const client = mqtt.connect(import.meta.env.VITE_MQTT_URL, {
+  username: import.meta.env.VITE_MQTT_USERNAME,
+  password: import.meta.env.VITE_MQTT_PASSWORD,
+});
 
 client.on("connect", () => {
   console.log("MQTT Connected");
