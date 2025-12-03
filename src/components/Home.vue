@@ -362,6 +362,12 @@ const setActiveMenu = (label) => {
     const status = activeMenus.value[label] ? "lampu on" : "lampu off";
     lampOn.value = activeMenus.value[label];
     client.publish("ptb/kontrol", status);
+  } else if (label === "USB") {
+    const status = activeMenus.value[label] ? "usb on" : "usb on";
+    client.publish("ptb/kontrol", status);
+  } else if (label === "Printer") {
+    const status = activeMenus.value[label] ? "printer on" : "printer on";
+    client.publish("ptb/kontrol", status);
   }
 };
 
