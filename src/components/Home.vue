@@ -1,9 +1,7 @@
 <template>
   <div class="min-h-screen bg-[#003A70] text-white flex flex-col">
     <!-- HEADER -->
-    <header
-      class="px-6 py-5 flex items-center justify-between backdrop-blur-md bg-white/5 border-b border-white/10"
-    >
+    <header class="px-6 py-5 flex items-center justify-between">
       <div class="flex items-center gap-3">
         <div
           class="w-11 h-11 rounded-full bg-white/20 flex items-center justify-center"
@@ -23,6 +21,7 @@
           variant="text"
           icon="pi pi-refresh"
           class="text-white/70 hover:text-white"
+          @click="reloadPage"
         />
       </div>
     </header>
@@ -84,15 +83,38 @@
             <p class="text-gray-600 text-sm">Omset</p>
             <p class="font-bold text-2xl mt-1">Rp 100.000.000</p>
           </div>
-          <video
-            ref="monitorVideo"
-            autoplay
-            playsinline
-            muted
-            class="aspect-video h-20 md:h-24 object-contain rounded-lg bg-black cursor-pointer transition"
-            :class="{ 'opacity-50': !hasStream }"
-            @click="openFullscreen"
-          ></video>
+
+          <div class="relative inline-block w-32 md:w-32">
+            <video
+              ref="monitorVideo"
+              playsinline
+              muted
+              class="w-full aspect-square object-contain rounded-lg bg-black cursor-pointer transition"
+              @click="openMonitorPreview"
+            ></video>
+
+            <div
+              class="absolute inset-0 flex items-center justify-center bg-black/40 rounded-lg cursor-pointer w-full h-full"
+              @click="openMonitorPreview"
+            >
+              <!-- BELUM STREAMING (TOMBOL AWAL) -->
+              <p
+                v-if="!isStreaming && !loadingStream"
+                class="text-center text-xs px-3 text-white"
+              >
+                Klik untuk melihat layar
+              </p>
+
+              <!-- LOADING -->
+              <div
+                v-if="loadingStream"
+                class="flex flex-col items-center gap-2"
+              >
+                <i class="pi pi-spin pi-spinner text-white text-xl"></i>
+                <p class="text-xs text-white">Menghubungkan</p>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -136,7 +158,7 @@
           <!-- GRID SETTINGS -->
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <!-- DELAY -->
-            <div class="p-4 bg-white rounded-xl shadow border">
+            <div class="p-4 bg-white rounded-xl shadow border border-gray-300">
               <div class="flex items-center gap-2 mb-2 text-primary-700">
                 <i class="pi pi-clock"></i>
                 <p class="font-semibold text-gray-700">Delay Deteksi</p>
@@ -161,7 +183,7 @@
             </div>
 
             <!-- MIN FACE SIZE -->
-            <div class="p-4 bg-white rounded-xl shadow border">
+            <div class="p-4 bg-white rounded-xl shadow border border-gray-300">
               <div class="flex items-center gap-2 mb-2 text-primary-700">
                 <i class="pi pi-user"></i>
                 <p class="font-semibold text-gray-700">Minimum Face Size</p>
@@ -187,11 +209,11 @@
           </div>
 
           <!-- VIDEO MANAGEMENT -->
-          <div class="p-5 bg-white rounded-2xl shadow border">
+          <div class="p-5 bg-white rounded-2xl shadow border border-gray-300">
             <div class="flex items-center justify-between mb-5">
               <div class="flex items-center gap-2">
                 <i class="pi pi-video text-primary-700 text-xl"></i>
-                <p class="text-lg font-semibold">Manajemen Video</p>
+                <p class="font-semibold">Manajemen Video</p>
               </div>
 
               <Button
@@ -231,7 +253,9 @@
                 <Button label="Upload" size="small" @click="uploadVideos" />
               </div>
 
-              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div
+                class="grid grid-cols-1 sm:grid-cols-2 gap-4 place-items-center"
+              >
                 <div
                   v-for="vid in previewUpload"
                   :key="vid.url"
@@ -254,12 +278,12 @@
 
               <div
                 v-if="videoList.length"
-                class="grid grid-cols-1 sm:grid-cols-2 gap-4"
+                class="grid grid-cols-1 sm:grid-cols-2 gap-4 place-items-center"
               >
                 <div
                   v-for="vid in videoList"
                   :key="vid"
-                  class="bg-gray-50 rounded-xl shadow-sm border p-4 flex gap-3"
+                  class="bg-gray-50 rounded-xl flex gap-3"
                 >
                   <Checkbox
                     v-model="selectedToDelete"
@@ -270,11 +294,13 @@
                   <label :for="'vid-' + vid" class="flex-1 cursor-pointer">
                     <p class="text-xs font-medium truncate">{{ vid }}</p>
 
-                    <div class="mt-2 bg-black rounded-lg overflow-hidden">
+                    <div
+                      class="mt-2 bg-black rounded-lg overflow-hidden w-full max-w-full"
+                    >
                       <video
                         :src="API_URL + '/videos/' + vid"
                         controls
-                        class="w-full aspect-video"
+                        class="w-full aspect-video object-contain object-center"
                       ></video>
                     </div>
                   </label>
@@ -329,7 +355,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from "vue";
+import { ref, onMounted, nextTick, watch } from "vue";
 import axios from "axios";
 import mqtt from "mqtt";
 
@@ -342,6 +368,9 @@ const showSettings = ref(false);
 const monitorVideo = ref(null);
 
 const lampOn = ref(false);
+const isStreaming = ref(false);
+const allowReconnect = ref(true);
+const loadingStream = ref(false);
 
 // Setting states
 const delay = ref(5);
@@ -354,6 +383,49 @@ const previewUpload = ref([]);
 
 const showFullscreen = ref(false);
 const fullscreenVideo = ref(null);
+
+function reloadPage() {
+  window.location.reload();
+}
+
+function cleanupWebRTC() {
+  console.log("[WEB] Cleaning up WebRTC...");
+
+  allowReconnect.value = false; // matikan auto reconnect
+
+  // Hentikan stream
+  if (monitorVideo.value?.srcObject) {
+    monitorVideo.value.srcObject.getTracks().forEach((t) => t.stop());
+    monitorVideo.value.srcObject = null;
+  }
+
+  if (fullscreenVideo.value?.srcObject) {
+    fullscreenVideo.value.srcObject.getTracks().forEach((t) => t.stop());
+    fullscreenVideo.value.srcObject = null;
+  }
+
+  // Tutup PeerConnection
+  if (window.activePC) {
+    try {
+      window.activePC.close();
+    } catch (e) {}
+    window.activePC = null;
+  }
+
+  // Tutup signaling WebSocket
+  if (window.activeSignal) {
+    try {
+      window.activeSignal.close();
+    } catch (e) {}
+    window.activeSignal = null;
+  }
+
+  // reset state
+  isStreaming.value = false;
+  hasStream.value = false;
+
+  console.log("[WEB] WebRTC Stopped.");
+}
 
 const setActiveMenu = (label) => {
   activeMenus.value[label] = !activeMenus.value[label];
@@ -391,14 +463,22 @@ client.on("connect", () => {
   client.subscribe("ptb/kontrol");
 });
 
-function openFullscreen() {
-  if (!monitorVideo.value?.srcObject) return;
-  showFullscreen.value = true;
+async function openMonitorPreview() {
+  // Jika belum streaming → mulai WebRTC
+  if (!isStreaming.value) {
+    loadingStream.value = true; // Tampilkan spinner
+    allowReconnect.value = true;
 
-  // Copy stream ke video fullscreen
-  setTimeout(() => {
-    fullscreenVideo.value.srcObject = monitorVideo.value.srcObject;
-  }, 50);
+    isStreaming.value = true;
+    hasStream.value = false;
+
+    await initWebRTC();
+    return; // fullscreen akan dibuka setelah track diterima
+  }
+
+  // Jika sudah streaming → langsung buka fullscreen
+  showFullscreen.value = true;
+  fullscreenVideo.value.srcObject = monitorVideo.value.srcObject;
 }
 
 async function initWebRTC() {
@@ -427,8 +507,13 @@ async function initWebRTC() {
   };
 
   signaling.onclose = () => {
-    console.warn("[WEB] Signaling closed, retrying...");
-    setTimeout(initWebRTC, 1500);
+    console.warn("[WEB] Signaling closed");
+
+    // Jangan reconnect jika streaming dihentikan manual
+    if (allowReconnect.value) {
+      console.warn("[WEB] Auto-reconnect...");
+      setTimeout(initWebRTC, 1500);
+    }
   };
 
   // === NEW PeerConnection ===
@@ -464,9 +549,19 @@ async function initWebRTC() {
     console.log("[WEB] Conn state:", pc.connectionState);
 
   pc.ontrack = (event) => {
-    hasStream.value = true;
     console.log("[WEB] TRACK RECEIVED");
+
+    loadingStream.value = false;
+    hasStream.value = true;
     monitorVideo.value.srcObject = event.streams[0];
+
+    // Auto buka fullscreen begitu stream masuk
+    showFullscreen.value = true;
+
+    // copy stream ke fullscreen video
+    nextTick(() => {
+      fullscreenVideo.value.srcObject = monitorVideo.value.srcObject;
+    });
   };
 
   // Handle signaling server messages
@@ -660,7 +755,12 @@ const allMenuItems = [
 onMounted(async () => {
   await loadSettings();
   loadVideos();
-  initWebRTC();
+});
+
+watch(showFullscreen, (val) => {
+  if (val === false) {
+    cleanupWebRTC();
+  }
 });
 </script>
 
