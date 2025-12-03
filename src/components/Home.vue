@@ -53,7 +53,7 @@
             @click="setActiveMenu(i.label)"
             :class="[
               'flex flex-col items-center py-4 rounded-xl cursor-pointer transition shadow-sm',
-              activeMenu === i.label
+              activeMenus[i.label]
                 ? 'bg-primary-50 border border-primary-300 scale-[1.03]'
                 : 'bg-gray-50 border border-gray-200 hover:bg-gray-100 hover:shadow',
             ]"
@@ -62,38 +62,18 @@
               :class="[
                 'pi text-2xl',
                 i.icon,
-                activeMenu === i.label ? 'text-primary-700' : 'text-gray-500',
+                activeMenus[i.label] ? 'text-primary-700' : 'text-gray-500',
               ]"
             />
             <span
               :class="[
                 'text-xs mt-2 font-semibold',
-                activeMenu === i.label ? 'text-primary-800' : 'text-gray-700',
+                activeMenus[i.label] ? 'text-primary-800' : 'text-gray-700',
               ]"
             >
               {{ i.label }}
             </span>
           </div>
-        </div>
-
-        <!-- CONTROL LAMPU -->
-        <div
-          v-if="activeMenu === 'Lampu'"
-          class="mt-6 p-6 bg-gray-100 rounded-xl shadow-sm border"
-        >
-          <h3 class="font-semibold text-lg mb-4">Kontrol Lampu</h3>
-
-          <Button
-            :label="lampOn ? 'Matikan Lampu' : 'Hidupkan Lampu'"
-            :severity="lampOn ? 'danger' : 'success'"
-            icon="pi pi-lightbulb"
-            class="w-full py-3 text-base rounded-lg"
-            @click="toggleLamp"
-          />
-
-          <p class="mt-3 text-sm text-gray-700">
-            Status: <strong>{{ lampOn ? "ON" : "OFF" }}</strong>
-          </p>
         </div>
 
         <!-- CARD OMSET -->
@@ -375,6 +355,16 @@ const previewUpload = ref([]);
 const showFullscreen = ref(false);
 const fullscreenVideo = ref(null);
 
+const setActiveMenu = (label) => {
+  activeMenus.value[label] = !activeMenus.value[label];
+
+  if (label === "Lampu") {
+    const status = activeMenus.value[label] ? "lampu on" : "lampu off";
+    lampOn.value = activeMenus.value[label];
+    client.publish("ptb/kontrol", status);
+  }
+};
+
 const client = mqtt.connect(import.meta.env.VITE_MQTT_URL, {
   protocolVersion: 5,
   username: import.meta.env.VITE_MQTT_USERNAME,
@@ -394,16 +384,6 @@ client.on("connect", () => {
   // subscribe jika Anda ingin mendapat feedback
   client.subscribe("ptb/kontrol");
 });
-
-function toggleLamp() {
-  lampOn.value = !lampOn.value;
-
-  const cmd = lampOn.value ? "lampu on" : "lampu off";
-
-  client.publish("ptb/kontrol", cmd);
-
-  console.log("MQTT send:", cmd);
-}
 
 function openFullscreen() {
   if (!monitorVideo.value?.srcObject) return;
@@ -653,7 +633,14 @@ const statusSeverity = {
   Error: "danger",
 };
 
-const activeMenu = ref("Jaringan"); // default menu pertama
+const activeMenus = ref({
+  Jaringan: false,
+  Printer: false,
+  Komputer: false,
+  Kamera: false,
+  Lampu: false,
+  USB: false,
+});
 
 const allMenuItems = [
   { label: "Jaringan", icon: "pi-wifi" },
@@ -661,11 +648,8 @@ const allMenuItems = [
   { label: "Komputer", icon: "pi-desktop" },
   { label: "Kamera", icon: "pi-camera" },
   { label: "Lampu", icon: "pi-lightbulb" },
+  { label: "USB", icon: "pi-eject" },
 ];
-
-function setActiveMenu(label) {
-  activeMenu.value = label;
-}
 
 onMounted(async () => {
   await loadSettings();
