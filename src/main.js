@@ -1,5 +1,6 @@
 import { createApp } from "vue";
 import { createPinia } from "pinia";
+import ConfirmationService from "primevue/confirmationservice";
 import router from "./router";
 import PrimeVue from "primevue/config";
 import { definePreset } from "@primeuix/themes";
@@ -73,5 +74,6 @@ app.use(PrimeVue, {
     clear: "Hapus",
   },
 });
+app.use(ConfirmationService);
 app.use(MotionPlugin);
 app.mount("#app");

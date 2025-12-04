@@ -364,12 +364,15 @@
       </Dialog>
     </main>
   </div>
+
+  <ConfirmDialog />
 </template>
 
 <script setup>
 import { ref, onMounted, nextTick, watch } from "vue";
 import axios from "axios";
 import mqtt from "mqtt";
+import { useConfirm } from "primevue/useconfirm";
 
 const API_URL = import.meta.env.VITE_API_URL;
 const SIGNALING_URL = import.meta.env.VITE_SIGNALING_URL;
@@ -395,6 +398,8 @@ const previewUpload = ref([]);
 
 const showFullscreen = ref(false);
 const fullscreenVideo = ref(null);
+
+const confirm = useConfirm();
 
 function reloadPage() {
   window.location.reload();
@@ -440,19 +445,40 @@ function cleanupWebRTC() {
 }
 
 const setActiveMenu = (label) => {
-  activeMenus.value[label] = !activeMenus.value[label];
+  const newState = !activeMenus.value[label];
+  const actionText = newState ? "mengaktifkan" : "menonaktifkan";
 
-  if (label === "Lampu") {
-    const status = activeMenus.value[label] ? "lampu on" : "lampu off";
-    lampOn.value = activeMenus.value[label];
-    client.publish("ptb/kontrol", status);
-  } else if (label === "USB") {
-    const status = activeMenus.value[label] ? "usb on" : "usb on";
-    client.publish("ptb/kontrol", status);
-  } else if (label === "Printer") {
-    const status = activeMenus.value[label] ? "printer on" : "printer on";
-    client.publish("ptb/kontrol", status);
-  }
+  confirm.require({
+    message: `Yakin ingin ${actionText} ${label}?`,
+    header: "Konfirmasi",
+    icon: "pi pi-exclamation-triangle",
+    acceptLabel: "Yakin",
+    rejectLabel: "Batal",
+    acceptClass: "p-button-primary",
+    rejectClass: "p-button-secondary",
+
+    accept: () => {
+      // Ubah state
+      activeMenus.value[label] = newState;
+
+      // Kirim MQTT sesuai label
+      if (label === "Lampu") {
+        const status = newState ? "lampu on" : "lampu off";
+        lampOn.value = newState;
+        client.publish("ptb/kontrol", status);
+      } else if (label === "USB") {
+        const status = newState ? "usb on" : "usb off";
+        client.publish("ptb/kontrol", status);
+      } else if (label === "Printer") {
+        const status = newState ? "printer on" : "printer off";
+        client.publish("ptb/kontrol", status);
+      }
+    },
+
+    reject: () => {
+      // Tidak mengubah apa pun jika dibatalkan
+    },
+  });
 };
 
 const client = mqtt.connect(import.meta.env.VITE_MQTT_URL, {
@@ -645,27 +671,29 @@ function onFileSelected(event) {
 }
 
 async function loadSettings() {
-  const res = await axios.get(API_URL + "/get-settings");
+  const res = await axios.get(API_URL + "/settings/get");
   delay.value = res.data.delay;
   minFace.value = res.data.min_face;
 }
 
 // LOAD VIDEO LIST
 async function loadVideos() {
-  const res = await axios.get(API_URL + "/list-video");
+  const res = await axios.get(API_URL + "/video/list");
   videoList.value = res.data.videos;
 }
 
 // UPDATE DELAY
 async function updateDelay() {
-  await axios.post(API_URL + "/set-delay?seconds=" + delay.value);
+  await axios.post(API_URL + "/settings/set-delay?seconds=" + delay.value);
   await loadSettings();
   alert("Delay berhasil diupdate!");
 }
 
 // UPDATE MIN FACE SIZE
 async function updateMinFace() {
-  await axios.post(API_URL + "/set-min-face-size?size=" + minFace.value);
+  await axios.post(
+    API_URL + "/settings/set-min-face-size?size=" + minFace.value
+  );
   await loadSettings();
   alert("Minimal face size berhasil diupdate!");
 }
@@ -678,7 +706,7 @@ async function uploadVideos() {
   const form = new FormData();
   for (const f of files) form.append("files", f);
 
-  await axios.post(API_URL + "/upload-video", form, {
+  await axios.post(API_URL + "/video/upload", form, {
     headers: { "Content-Type": "multipart/form-data" },
   });
 
@@ -695,7 +723,7 @@ async function deleteSelectedVideos() {
   if (!selectedToDelete.value.length) return;
 
   for (const vid of selectedToDelete.value) {
-    await axios.post(API_URL + "/delete-video?filename=" + vid);
+    await axios.post(API_URL + "/video/delete?filename=" + vid);
   }
 
   alert("Video terpilih berhasil dihapus!");
