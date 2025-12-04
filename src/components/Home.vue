@@ -238,6 +238,22 @@
               />
             </div>
 
+            <!-- PILIH KATEGORI UPLOAD (PrimeVue Dropdown) -->
+            <div class="mb-4">
+              <label class="font-medium text-sm text-gray-700"
+                >Kategori Video</label
+              >
+
+              <Select
+                v-model="uploadCategory"
+                :options="categoryOptions"
+                optionLabel="label"
+                optionValue="value"
+                class="w-full mt-1"
+                placeholder="Pilih kategori"
+              />
+            </div>
+
             <!-- UPLOAD BOX -->
             <div
               class="rounded-xl border border-gray-300 border-dashed p-6 text-center bg-gray-50 hover:bg-gray-100 cursor-pointer transition"
@@ -258,7 +274,7 @@
               @change="onFileSelected"
             />
 
-            <!-- PREVIEW -->
+            <!-- PREVIEW UPLOAD -->
             <div v-if="previewUpload.length" class="mt-5">
               <div class="flex items-center justify-between mb-2">
                 <p class="font-semibold">Preview Sebelum Upload</p>
@@ -276,10 +292,10 @@
                   <p class="text-xs font-medium truncate">{{ vid.name }}</p>
 
                   <video
-                    :src="API_URL + '/videos/' + vid"
+                    :src="vid.url"
                     controls
                     class="rounded-lg w-full aspect-video mt-2 bg-black"
-                  />
+                  ></video>
                 </div>
               </div>
             </div>
@@ -288,43 +304,52 @@
             <div class="mt-8">
               <p class="font-semibold mb-3">Daftar Video</p>
 
-              <div
-                v-if="videoList.length"
-                class="grid grid-cols-1 sm:grid-cols-2 gap-4 place-items-center"
-              >
+              <template v-for="(items, category) in videoList" :key="category">
+                <h3 class="text-sm font-bold text-gray-700 mt-4 mb-2 uppercase">
+                  {{ category }}
+                </h3>
+
                 <div
-                  v-for="vid in videoList"
-                  :key="vid"
-                  class="bg-gray-50 rounded-xl flex gap-3"
+                  v-if="items.length"
+                  class="grid grid-cols-1 sm:grid-cols-2 gap-4 place-items-center"
                 >
-                  <Checkbox
-                    v-model="selectedToDelete"
-                    :inputId="'vid-' + vid"
-                    :value="vid"
-                  />
+                  <div
+                    v-for="vid in items"
+                    :key="vid"
+                    class="bg-gray-50 rounded-xl flex gap-3"
+                  >
+                    <Checkbox
+                      v-model="selectedToDelete[category]"
+                      :value="vid"
+                      :inputId="'vid-' + category + '-' + vid"
+                    />
 
-                  <label :for="'vid-' + vid" class="flex-1 cursor-pointer">
-                    <p class="text-xs font-medium truncate">{{ vid }}</p>
-
-                    <div
-                      class="mt-2 bg-black rounded-lg overflow-hidden w-full max-w-full"
+                    <label
+                      :for="'vid-' + category + '-' + vid"
+                      class="flex-1 cursor-pointer"
                     >
-                      <video
-                        :src="API_URL + '/videos/' + vid"
-                        controls
-                        class="w-full aspect-video object-contain object-center"
-                      ></video>
-                    </div>
-                  </label>
-                </div>
-              </div>
+                      <p class="text-xs font-medium truncate">{{ vid }}</p>
 
-              <p v-else class="text-gray-500 text-sm text-center py-4">
-                Belum ada video yang diupload.
-              </p>
+                      <div
+                        class="mt-2 bg-black rounded-lg overflow-hidden w-full max-w-full"
+                      >
+                        <video
+                          :src="API_URL + '/videos/' + category + '/' + vid"
+                          controls
+                          class="w-full aspect-video object-contain object-center"
+                        ></video>
+                      </div>
+                    </label>
+                  </div>
+                </div>
+
+                <p v-else class="text-gray-500 text-sm text-center py-2">
+                  Tidak ada video dalam kategori ini.
+                </p>
+              </template>
 
               <Button
-                v-if="selectedToDelete.length"
+                v-if="hasSelected"
                 label="Hapus Video Terpilih"
                 severity="danger"
                 class="w-full mt-4"
@@ -333,16 +358,16 @@
                 @click="deleteSelectedVideos"
               />
             </div>
-          </div>
 
-          <Button
-            label="Refresh Daftar Video"
-            class="w-full"
-            icon="pi pi-refresh"
-            size="small"
-            outlined
-            @click="loadVideos"
-          />
+            <Button
+              label="Refresh Daftar Video"
+              class="w-full mt-4"
+              icon="pi pi-refresh"
+              size="small"
+              outlined
+              @click="loadVideos"
+            />
+          </div>
         </div>
       </Dialog>
 
@@ -369,7 +394,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, nextTick, watch } from "vue";
+import { ref, onMounted, nextTick, watch, computed } from "vue";
 import axios from "axios";
 import mqtt from "mqtt";
 import { useConfirm } from "primevue/useconfirm";
@@ -387,13 +412,30 @@ const isStreaming = ref(false);
 const allowReconnect = ref(true);
 const loadingStream = ref(false);
 
+const uploadCategory = ref("ajakan");
+
 // Setting states
 const delay = ref(5);
 const minFace = ref(120);
 
 const uploadRef = ref(null);
-const videoList = ref([]);
-const selectedToDelete = ref([]);
+const videoList = ref({
+  ajakan: [],
+  promosi: [],
+});
+const selectedToDelete = ref({
+  ajakan: [],
+  promosi: [],
+});
+const categoryOptions = [
+  { label: "Ajakan", value: "ajakan" },
+  { label: "Promosi", value: "promosi" },
+];
+const hasSelected = computed(
+  () =>
+    selectedToDelete.value.ajakan.length > 0 ||
+    selectedToDelete.value.promosi.length > 0
+);
 const previewUpload = ref([]);
 
 const showFullscreen = ref(false);
@@ -679,7 +721,13 @@ async function loadSettings() {
 // LOAD VIDEO LIST
 async function loadVideos() {
   const res = await axios.get(API_URL + "/video/list");
-  videoList.value = res.data.videos;
+  videoList.value = res.data;
+
+  // Reset checkbox state
+  selectedToDelete.value = {
+    ajakan: [],
+    promosi: [],
+  };
 }
 
 // UPDATE DELAY
@@ -706,12 +754,13 @@ async function uploadVideos() {
   const form = new FormData();
   for (const f of files) form.append("files", f);
 
-  await axios.post(API_URL + "/video/upload", form, {
-    headers: { "Content-Type": "multipart/form-data" },
-  });
+  await axios.post(
+    API_URL + "/video/upload?category=" + uploadCategory.value,
+    form,
+    { headers: { "Content-Type": "multipart/form-data" } }
+  );
 
   alert("Upload berhasil!");
-
   previewUpload.value = [];
   uploadRef.value.value = "";
 
@@ -720,26 +769,38 @@ async function uploadVideos() {
 
 // DELETE VIDEO
 async function deleteSelectedVideos() {
-  if (!selectedToDelete.value.length) return;
+  const lists = selectedToDelete.value;
 
-  for (const vid of selectedToDelete.value) {
-    await axios.post(API_URL + "/video/delete?filename=" + vid);
+  for (const category of ["ajakan", "promosi"]) {
+    for (const vid of lists[category]) {
+      await axios.post(
+        API_URL +
+          `/video/delete?category=${category}&filename=${encodeURIComponent(
+            vid
+          )}`
+      );
+    }
   }
 
   alert("Video terpilih berhasil dihapus!");
-  selectedToDelete.value = [];
   loadVideos();
 }
 
 async function deleteAllVideos() {
   if (!confirm("Yakin hapus semua video?")) return;
 
-  for (const vid of videoList.value) {
-    await axios.post(API_URL + "/delete-video?filename=" + vid);
+  for (const category of ["ajakan", "promosi"]) {
+    for (const vid of videoList.value[category]) {
+      await axios.post(
+        API_URL +
+          `/video/delete?category=${category}&filename=${encodeURIComponent(
+            vid
+          )}`
+      );
+    }
   }
 
   alert("Semua video berhasil dihapus!");
-  selectedToDelete.value = [];
   loadVideos();
 }
 
