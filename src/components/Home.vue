@@ -64,6 +64,8 @@
                 activeMenus[i.label] ? 'text-primary-700' : 'text-gray-500',
               ]"
             />
+
+            <!-- LABEL MENU -->
             <span
               :class="[
                 'text-xs mt-2 font-semibold',
@@ -71,6 +73,16 @@
               ]"
             >
               {{ i.label }}
+            </span>
+
+            <!-- STATUS ON / OFF -->
+            <span
+              :class="[
+                'text-[10px] mt-1 font-medium',
+                activeMenus[i.label] ? 'text-primary-600' : 'text-gray-600',
+              ]"
+            >
+              {{ activeMenus[i.label] ? "ON" : "OFF" }}
             </span>
           </div>
         </div>
