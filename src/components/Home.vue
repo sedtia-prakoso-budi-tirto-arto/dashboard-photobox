@@ -101,7 +101,7 @@
               ref="monitorVideo"
               playsinline
               muted
-              class="w-full aspect-square object-contain rounded-lg bg-black cursor-pointer transition"
+              class="w-full aspect-square object-contain rounded-lg cursor-pointer transition"
               @click="openMonitorPreview"
             ></video>
 
