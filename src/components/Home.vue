@@ -75,15 +75,27 @@
               {{ i.label }}
             </span>
 
-            <!-- STATUS ON / OFF -->
-            <span
-              :class="[
-                'text-[10px] mt-1 font-medium',
-                activeMenus[i.label] ? 'text-primary-600' : 'text-gray-600',
-              ]"
-            >
-              {{ activeMenus[i.label] ? "ON" : "OFF" }}
-            </span>
+            <!-- STATUS MENU -->
+            <template v-if="i.label !== 'Printer'">
+              <span
+                :class="[
+                  'text-[10px] mt-1 font-medium',
+                  activeMenus[i.label] ? 'text-primary-600' : 'text-gray-600',
+                ]"
+              >
+                {{ activeMenus[i.label] ? "ON" : "OFF" }}
+              </span>
+            </template>
+
+            <!-- PRINTER STATUS TAG -->
+            <template v-else>
+              <Tag
+                :value="printerStatus"
+                :severity="printerColor"
+                class="mt-1 text-[10px]"
+                rounded
+              />
+            </template>
           </div>
         </div>
 
@@ -412,6 +424,9 @@ const isStreaming = ref(false);
 const allowReconnect = ref(true);
 const loadingStream = ref(false);
 
+const printerStatus = ref("Unknown");
+const printerErrors = ref([]);
+
 const uploadCategory = ref("ajakan");
 
 // Setting states
@@ -442,6 +457,34 @@ const showFullscreen = ref(false);
 const fullscreenVideo = ref(null);
 
 const confirm = useConfirm();
+
+async function fetchPrinterStatus() {
+  try {
+    const res = await axios.get(API_URL + "/printer/status");
+    if (res.data.status === "success") {
+      printerStatus.value = res.data.data.status;
+      printerErrors.value = res.data.data.errors;
+    } else {
+      printerStatus.value = "Error";
+      printerErrors.value = ["Tidak dapat membaca printer"];
+    }
+  } catch (e) {
+    printerStatus.value = "Offline";
+    printerErrors.value = ["Tidak dapat terhubung"];
+  }
+}
+
+const printerColor = computed(() => {
+  const s = printerStatus.value.toLowerCase();
+
+  if (s.includes("idle") || s.includes("ready")) return "success";
+  if (s.includes("printing")) return "info";
+  if (s.includes("warmup")) return "warn";
+  if (s.includes("error")) return "danger";
+  if (s.includes("offline")) return "danger";
+
+  return "secondary";
+});
 
 function reloadPage() {
   window.location.reload();
@@ -856,6 +899,9 @@ const allMenuItems = [
 onMounted(async () => {
   await loadSettings();
   loadVideos();
+
+  fetchPrinterStatus();
+  setInterval(fetchPrinterStatus, 2000);
 });
 
 watch(showFullscreen, (val) => {
