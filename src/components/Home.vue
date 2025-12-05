@@ -76,7 +76,129 @@
             </span>
 
             <!-- STATUS MENU -->
-            <template v-if="i.label !== 'Printer'">
+            <template v-if="i.label === 'Printer'">
+              <div class="flex flex-col items-center mt-1">
+                <Tag
+                  :value="printerStatus"
+                  :severity="printerColor"
+                  class="text-[10px]"
+                  rounded
+                />
+
+                <!-- DETAIL ERROR PRINTER -->
+                <small
+                  v-if="printerErrors.length"
+                  class="text-[9px] text-gray-500 mt-2 text-center"
+                >
+                  {{ printerErrors.join(", ") }}
+                </small>
+
+                <small
+                  v-else-if="
+                    printerStatus === 'Unknown' || printerStatus === 'Offline'
+                  "
+                  class="text-[9px] text-gray-500 mt-2 text-center"
+                >
+                  {{ detailUnknown("printer") }}
+                </small>
+              </div>
+            </template>
+
+            <template v-else-if="i.label === 'Kamera'">
+              <div class="flex flex-col items-center mt-1">
+                <Tag
+                  :value="webcamStatus"
+                  :severity="webcamColor"
+                  class="text-[10px]"
+                  rounded
+                />
+
+                <!-- DETAIL JUMLAH WEBCAM -->
+                <small class="text-[9px] text-gray-500 mt-2 text-center">
+                  <template v-if="webcamStatus === 'Connected'">
+                    {{ webcamCount }} terdeteksi
+                  </template>
+                  <template v-else>
+                    {{ detailUnknown("webcam") }}
+                  </template>
+                </small>
+              </div>
+            </template>
+
+            <!-- NETWORK STATUS TAG -->
+            <template v-else-if="i.label === 'Jaringan'">
+              <div class="flex flex-col items-center mt-1">
+                <Tag
+                  :value="networkStatus"
+                  :severity="networkColor"
+                  class="text-[10px]"
+                  rounded
+                />
+
+                <!-- DETAIL PING / SPEED -->
+                <small
+                  class="text-[9px] text-gray-500 mt-2 flex flex-col text-center"
+                >
+                  <template v-if="networkStatus === 'Online'">
+                    <span>PING: {{ networkPing ?? "-" }} ms</span>
+                    <span>SPEED: {{ networkSpeed ?? "-" }} Mbps</span>
+                  </template>
+
+                  <template v-else>
+                    <span>{{ detailUnknown("network") }}</span>
+                  </template>
+                </small>
+              </div>
+            </template>
+
+            <!-- COMPUTER STATUS -->
+            <template v-else-if="i.label === 'Komputer'">
+              <div class="flex flex-col items-center mt-1">
+                <!-- STATUS TAG -->
+                <Tag
+                  :value="computerStatus"
+                  :severity="computerColor"
+                  class="text-[10px]"
+                  rounded
+                />
+
+                <!-- DETAIL CPU / RAM / DISK -->
+                <small
+                  class="text-[9px] text-gray-500 mt-2 grid grid-cols-2 gap-x-2 text-center"
+                >
+                  <template
+                    v-if="
+                      computerStatus !== 'Offline' &&
+                      computerStatus !== 'Unknown'
+                    "
+                  >
+                    <span>CPU: {{ computerCpu ?? "-" }}%</span>
+                    <span>RAM: {{ computerMem ?? "-" }}%</span>
+                    <span class="col-span-2"
+                      >DISK: {{ computerDisk ?? "-" }}%</span
+                    >
+                  </template>
+
+                  <template v-else>
+                    <span class="col-span-2">{{
+                      detailUnknown("computer")
+                    }}</span>
+                  </template>
+                </small>
+              </div>
+            </template>
+
+            <!-- STATUS MENU KHUSUS LAMPU -->
+            <template v-else-if="i.label === 'Lampu'">
+              <Tag
+                :value="lampStatus"
+                :severity="lampColor"
+                class="mt-1 text-[10px]"
+                rounded
+              />
+            </template>
+
+            <template v-else>
               <span
                 :class="[
                   'text-[10px] mt-1 font-medium',
@@ -85,16 +207,6 @@
               >
                 {{ activeMenus[i.label] ? "ON" : "OFF" }}
               </span>
-            </template>
-
-            <!-- PRINTER STATUS TAG -->
-            <template v-else>
-              <Tag
-                :value="printerStatus"
-                :severity="printerColor"
-                class="mt-1 text-[10px]"
-                rounded
-              />
             </template>
           </div>
         </div>
@@ -148,15 +260,86 @@
           <h2 class="text-xl font-bold text-gray-900">Data Log</h2>
         </div>
 
+        <!-- FILTER LOG -->
+        <div class="flex flex-wrap gap-3 mb-4">
+          <!-- GROUP STATUS + AKTIVITAS -->
+          <div class="flex gap-3 w-full sm:w-auto">
+            <!-- FILTER STATUS -->
+            <div class="flex flex-col w-full sm:w-36">
+              <label class="text-xs text-gray-600 mb-1">Status</label>
+              <Select
+                v-model="filterStatus"
+                :options="[
+                  { label: 'Semua', value: 'all' },
+                  { label: 'Normal', value: 'Normal' },
+                  { label: 'Warning', value: 'Warning' },
+                  { label: 'Error', value: 'Error' },
+                  { label: 'ON', value: 'ON' },
+                  { label: 'OFF', value: 'OFF' },
+                ]"
+                optionLabel="label"
+                optionValue="value"
+                class="w-full"
+                placeholder="Pilih Status"
+              />
+            </div>
+
+            <!-- FILTER DEVICE -->
+            <div class="flex flex-col w-full sm:w-40">
+              <label class="text-xs text-gray-600 mb-1">Aktivitas</label>
+              <Select
+                v-model="filterDevice"
+                :options="[
+                  { label: 'Semua', value: 'all' },
+                  { label: 'Komputer', value: 'computer' },
+                  { label: 'Printer', value: 'printer' },
+                  { label: 'Kamera', value: 'webcam' },
+                  { label: 'Jaringan', value: 'network' },
+                  { label: 'Lampu', value: 'lamp' },
+                ]"
+                optionLabel="label"
+                optionValue="value"
+                class="w-full"
+                placeholder="Pilih Device"
+              />
+            </div>
+          </div>
+
+          <!-- FILTER DATE RANGE (SELALU TURUN DI HP) -->
+          <div class="flex flex-col w-full sm:w-64">
+            <label class="text-xs text-gray-600 mb-1">Rentang Tanggal</label>
+
+            <DatePicker
+              v-model="dateRange"
+              selectionMode="range"
+              :manualInput="false"
+              dateFormat="dd/mm/yy"
+              showIcon
+              placeholder="Pilih rentang tanggal"
+              class="w-full"
+            />
+          </div>
+        </div>
+
         <DataTable
           :value="logs"
+          :lazy="true"
+          paginator
+          :rows="rows"
+          :totalRecords="totalLogs"
+          @page="loadLogs"
+          @sort="loadLogs"
           removableSort
           stripedRows
           showGridlines
-          class="rounded-xl overflow-hidden shadow text-sm bg-white"
           tableStyle="min-width: 100%"
+          class="rounded-xl overflow-hidden shadow text-sm bg-white"
         >
-          <Column field="tanggal" header="Tanggal & Jam" sortable />
+          <Column field="createdAt" header="Tanggal & Jam" sortable>
+            <template #body="slotProps">
+              {{ new Date(slotProps.data.createdAt).toLocaleString("id-ID") }}
+            </template>
+          </Column>
           <Column field="aktivitas" header="Aktivitas" sortable />
           <Column field="status" header="Status" sortable>
             <template #body="slotProps">
@@ -411,6 +594,12 @@ import axios from "axios";
 import mqtt from "mqtt";
 import { useConfirm } from "primevue/useconfirm";
 
+const logs = ref([]);
+const totalLogs = ref(0);
+
+const page = ref(0);
+const rows = ref(10);
+
 const API_URL = import.meta.env.VITE_API_URL;
 const SIGNALING_URL = import.meta.env.VITE_SIGNALING_URL;
 
@@ -426,6 +615,25 @@ const loadingStream = ref(false);
 
 const printerStatus = ref("Unknown");
 const printerErrors = ref([]);
+
+const webcamStatus = ref("Unknown");
+const webcamCount = ref(0);
+
+const networkStatus = ref("Unknown");
+const networkPing = ref(null);
+const networkSpeed = ref(null);
+
+const computerStatus = ref("Unknown");
+const computerCpu = ref(null);
+const computerMem = ref(null);
+const computerDisk = ref(null);
+
+const filterStatus = ref("all");
+const filterDevice = ref("all");
+const dateRange = ref(null);
+
+const sortField = ref("createdAt");
+const sortOrder = ref(-1);
 
 const uploadCategory = ref("ajakan");
 
@@ -458,6 +666,131 @@ const fullscreenVideo = ref(null);
 
 const confirm = useConfirm();
 
+async function loadLogs(event) {
+  // Ketika user klik header untuk sort ASC/DESC
+  if (event?.sortField !== null && event?.sortField !== undefined) {
+    sortField.value = event.sortField;
+    sortOrder.value = event.sortOrder;
+  }
+
+  // Ketika user menghapus sort (third click / removableSort)
+  if (event?.sortField === null) {
+    sortField.value = "createdAt"; // default
+    sortOrder.value = -1; // DESC
+  }
+
+  const currentPage = event?.page ?? page.value;
+  const pageSize = event?.rows ?? rows.value;
+
+  const params = new URLSearchParams({
+    page: currentPage + 1,
+    limit: pageSize,
+    status: filterStatus.value,
+    device: filterDevice.value,
+    sortField: sortField.value,
+    sortOrder: sortOrder.value,
+  });
+
+  if (
+    Array.isArray(dateRange.value) &&
+    dateRange.value[0] &&
+    dateRange.value[1]
+  ) {
+    params.append("startDate", dateRange.value[0].toISOString().split("T")[0]);
+    params.append("endDate", dateRange.value[1].toISOString().split("T")[0]);
+  }
+
+  const res = await axios.get(`${import.meta.env.VITE_API_LOGS_URL}?${params}`);
+
+  page.value = res.data.page - 1;
+  rows.value = res.data.limit;
+  totalLogs.value = res.data.total;
+
+  logs.value = res.data.data;
+}
+
+const detailUnknown = (field) => {
+  if (field === "network") return "Tidak dapat mengukur koneksi";
+  if (field === "printer") return "Printer tidak terdeteksi";
+  if (field === "webcam") return "Kamera tidak terdeteksi";
+  if (field === "computer") return "Sistem tidak merespons";
+  return "Status tidak diketahui";
+};
+
+const lampStatus = computed(() => {
+  return activeMenus.value["Lampu"] ? "ON" : "OFF";
+});
+
+async function fetchComputerStatus() {
+  try {
+    const res = await axios.get(API_URL + "/computer/status");
+
+    if (res.data.status === "success") {
+      const d = res.data.data;
+
+      computerCpu.value = d.cpu;
+      computerMem.value = d.memory;
+      computerDisk.value = d.disk;
+
+      // Tentukan status final komputer
+      if (
+        d.cpu_status === "Critical" ||
+        d.memory_status === "Critical" ||
+        d.disk_status === "Critical"
+      ) {
+        computerStatus.value = "Critical";
+      } else if (
+        d.cpu_status === "Warning" ||
+        d.memory_status === "Warning" ||
+        d.disk_status === "Warning"
+      ) {
+        computerStatus.value = "Warning";
+      } else {
+        computerStatus.value = "Normal";
+      }
+    } else {
+      computerStatus.value = "Offline";
+    }
+  } catch (e) {
+    computerStatus.value = "Offline";
+  }
+}
+
+async function fetchNetworkStatus() {
+  try {
+    const res = await axios.get(API_URL + "/network/speedtest-lite");
+
+    if (res.data.status === "success") {
+      const d = res.data.data;
+
+      networkStatus.value = d.online ? "Online" : "Offline";
+      networkPing.value = d.ping_ms;
+      networkSpeed.value = d.download_mbps;
+    } else {
+      networkStatus.value = "Offline";
+    }
+  } catch (e) {
+    networkStatus.value = "Offline";
+  }
+}
+
+async function fetchWebcamStatus() {
+  try {
+    const res = await axios.get(API_URL + "/webcam/status");
+
+    if (res.data.status === "success") {
+      const d = res.data.data;
+
+      webcamStatus.value = d.connected ? "Connected" : "Disconnected";
+      webcamCount.value = d.count || 0;
+    } else {
+      webcamStatus.value = "Error";
+    }
+  } catch (e) {
+    webcamStatus.value = "Offline";
+  }
+}
+
 async function fetchPrinterStatus() {
   try {
     const res = await axios.get(API_URL + "/printer/status");
@@ -473,6 +806,42 @@ async function fetchPrinterStatus() {
     printerErrors.value = ["Tidak dapat terhubung"];
   }
 }
+
+const lampColor = computed(() => {
+  return activeMenus.value["Lampu"] ? "success" : "danger";
+});
+
+const computerColor = computed(() => {
+  const s = computerStatus.value.toLowerCase();
+
+  if (s === "normal") return "success";
+  if (s === "warning") return "warn";
+  if (s === "critical") return "danger";
+  if (s === "offline") return "danger";
+
+  return "secondary";
+});
+
+const networkColor = computed(() => {
+  const s = networkStatus.value.toLowerCase();
+
+  if (s.includes("online") && networkSpeed.value >= 10) return "success"; // cepat
+  if (s.includes("online") && networkSpeed.value < 10) return "warn"; // lambat
+  if (s.includes("offline")) return "danger";
+
+  return "secondary";
+});
+
+const webcamColor = computed(() => {
+  const s = webcamStatus.value.toLowerCase();
+
+  if (s.includes("connected")) return "success";
+  if (s.includes("disconnected")) return "danger";
+  if (s.includes("offline")) return "danger";
+  if (s.includes("error")) return "danger";
+
+  return "secondary";
+});
 
 const printerColor = computed(() => {
   const s = printerStatus.value.toLowerCase();
@@ -551,7 +920,7 @@ const setActiveMenu = (label) => {
         const status = newState ? "lampu on" : "lampu off";
         lampOn.value = newState;
         client.publish("ptb/kontrol", status);
-      } else if (label === "USB") {
+      } else if (label === "Kamera") {
         const status = newState ? "usb on" : "usb off";
         client.publish("ptb/kontrol", status);
       } else if (label === "Printer") {
@@ -847,35 +1216,13 @@ async function deleteAllVideos() {
   loadVideos();
 }
 
-const logs = ref([
-  {
-    tanggal: "2025-01-02 08:30",
-    aktivitas: "Sistem menyala",
-    status: "Normal",
-  },
-  {
-    tanggal: "2025-01-02 09:15",
-    aktivitas: "Login pengguna",
-    status: "Sukses",
-  },
-  { tanggal: "2025-01-02 10:02", aktivitas: "Printer error", status: "Error" },
-  {
-    tanggal: "2025-01-02 11:20",
-    aktivitas: "CCTV terhubung",
-    status: "Normal",
-  },
-  {
-    tanggal: "2025-01-02 12:44",
-    aktivitas: "Perubahan jaringan",
-    status: "Warning",
-  },
-]);
-
 const statusSeverity = {
   Normal: "success",
-  Sukses: "info",
+  ON: "success",
   Warning: "warn",
   Error: "danger",
+  OFF: "danger",
+  Unknown: "secondary",
 };
 
 const activeMenus = ref({
@@ -884,7 +1231,6 @@ const activeMenus = ref({
   Komputer: false,
   Kamera: false,
   Lampu: false,
-  USB: false,
 });
 
 const allMenuItems = [
@@ -893,15 +1239,35 @@ const allMenuItems = [
   { label: "Komputer", icon: "pi-desktop" },
   { label: "Kamera", icon: "pi-camera" },
   { label: "Lampu", icon: "pi-lightbulb" },
-  { label: "USB", icon: "pi-eject" },
 ];
 
 onMounted(async () => {
   await loadSettings();
   loadVideos();
 
+  loadLogs();
+  setInterval(
+    () =>
+      loadLogs({
+        page: page.value,
+        rows: rows.value,
+        sortField: sortField.value,
+        sortOrder: sortOrder.value,
+      }),
+    3000
+  );
+
   fetchPrinterStatus();
   setInterval(fetchPrinterStatus, 2000);
+
+  fetchWebcamStatus();
+  setInterval(fetchWebcamStatus, 2000);
+
+  fetchNetworkStatus();
+  setInterval(fetchNetworkStatus, 2000);
+
+  fetchComputerStatus();
+  setInterval(fetchComputerStatus, 2000);
 });
 
 watch(showFullscreen, (val) => {
@@ -909,6 +1275,16 @@ watch(showFullscreen, (val) => {
     cleanupWebRTC();
   }
 });
+
+watch(
+  [filterStatus, filterDevice, dateRange],
+  () => {
+    page.value = 0;
+
+    loadLogs({ page: 0, rows: rows.value });
+  },
+  { deep: true }
+);
 </script>
 
 <style>
