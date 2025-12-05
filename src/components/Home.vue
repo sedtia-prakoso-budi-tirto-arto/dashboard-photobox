@@ -428,6 +428,7 @@
                 severity="danger"
                 outlined
                 icon="pi pi-trash"
+                :loading="loadingDelete"
                 @click="deleteAllVideos"
               />
             </div>
@@ -472,7 +473,12 @@
             <div v-if="previewUpload.length" class="mt-5">
               <div class="flex items-center justify-between mb-2">
                 <p class="font-semibold">Preview Sebelum Upload</p>
-                <Button label="Upload" size="small" @click="uploadVideos" />
+                <Button
+                  label="Upload"
+                  size="small"
+                  :loading="loadingUpload"
+                  @click="uploadVideos"
+                />
               </div>
 
               <div
@@ -549,6 +555,7 @@
                 class="w-full mt-4"
                 icon="pi pi-trash"
                 size="small"
+                :loading="loadingDelete"
                 @click="deleteSelectedVideos"
               />
             </div>
@@ -632,6 +639,9 @@ const dateRange = ref(null);
 
 const sortField = ref("createdAt");
 const sortOrder = ref(-1);
+
+const loadingUpload = ref(false);
+const loadingDelete = ref(false);
 
 const uploadCategory = ref("ajakan");
 
@@ -1164,57 +1174,80 @@ async function uploadVideos() {
   const files = uploadRef.value.files;
   if (!files.length) return alert("Pilih file terlebih dahulu!");
 
-  const form = new FormData();
-  for (const f of files) form.append("files", f);
+  loadingUpload.value = true; // MULAI LOADING
 
-  await axios.post(
-    API_URL + "/video/upload?category=" + uploadCategory.value,
-    form,
-    { headers: { "Content-Type": "multipart/form-data" } }
-  );
+  try {
+    const form = new FormData();
+    for (const f of files) form.append("files", f);
 
-  alert("Upload berhasil!");
-  previewUpload.value = [];
-  uploadRef.value.value = "";
+    await axios.post(
+      API_URL + "/video/upload?category=" + uploadCategory.value,
+      form,
+      { headers: { "Content-Type": "multipart/form-data" } }
+    );
 
-  loadVideos();
+    alert("Upload berhasil!");
+    previewUpload.value = [];
+    uploadRef.value.value = "";
+    loadVideos();
+  } catch (error) {
+    alert("Upload gagal!");
+  }
+
+  loadingUpload.value = false; // SELESAI LOADING
 }
 
 // DELETE VIDEO
 async function deleteSelectedVideos() {
+  loadingDelete.value = true; // MULAI LOADING
+
   const lists = selectedToDelete.value;
 
-  for (const category of ["ajakan", "promosi"]) {
-    for (const vid of lists[category]) {
-      await axios.post(
-        API_URL +
-          `/video/delete?category=${category}&filename=${encodeURIComponent(
-            vid
-          )}`
-      );
+  try {
+    for (const category of ["ajakan", "promosi"]) {
+      for (const vid of lists[category]) {
+        await axios.post(
+          API_URL +
+            `/video/delete?category=${category}&filename=${encodeURIComponent(
+              vid
+            )}`
+        );
+      }
     }
+
+    alert("Video terpilih berhasil dihapus!");
+    loadVideos();
+  } catch (e) {
+    alert("Gagal menghapus video.");
   }
 
-  alert("Video terpilih berhasil dihapus!");
-  loadVideos();
+  loadingDelete.value = false; // SELESAI LOADING
 }
 
 async function deleteAllVideos() {
   if (!confirm("Yakin hapus semua video?")) return;
 
-  for (const category of ["ajakan", "promosi"]) {
-    for (const vid of videoList.value[category]) {
-      await axios.post(
-        API_URL +
-          `/video/delete?category=${category}&filename=${encodeURIComponent(
-            vid
-          )}`
-      );
+  loadingDelete.value = true;
+
+  try {
+    for (const category of ["ajakan", "promosi"]) {
+      for (const vid of videoList.value[category]) {
+        await axios.post(
+          API_URL +
+            `/video/delete?category=${category}&filename=${encodeURIComponent(
+              vid
+            )}`
+        );
+      }
     }
+
+    alert("Semua video berhasil dihapus!");
+    loadVideos();
+  } catch (e) {
+    alert("Gagal menghapus semua video.");
   }
 
-  alert("Semua video berhasil dihapus!");
-  loadVideos();
+  loadingDelete.value = false;
 }
 
 const statusSeverity = {
