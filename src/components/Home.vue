@@ -141,7 +141,6 @@
                 >
                   <template v-if="networkStatus === 'Online'">
                     <span>PING: {{ networkPing ?? "-" }} ms</span>
-                    <span>SPEED: {{ networkSpeed ?? "-" }} Mbps</span>
                   </template>
 
                   <template v-else>
@@ -621,7 +620,6 @@ const webcamCount = ref(0);
 
 const networkStatus = ref("Unknown");
 const networkPing = ref(null);
-const networkSpeed = ref(null);
 
 const computerStatus = ref("Unknown");
 const computerCpu = ref(null);
@@ -765,7 +763,6 @@ async function fetchNetworkStatus() {
 
       networkStatus.value = d.online ? "Online" : "Offline";
       networkPing.value = d.ping_ms;
-      networkSpeed.value = d.download_mbps;
     } else {
       networkStatus.value = "Offline";
     }
@@ -825,8 +822,8 @@ const computerColor = computed(() => {
 const networkColor = computed(() => {
   const s = networkStatus.value.toLowerCase();
 
-  if (s.includes("online") && networkSpeed.value >= 10) return "success"; // cepat
-  if (s.includes("online") && networkSpeed.value < 10) return "warn"; // lambat
+  if (s.includes("online") && networkPing.value <= 300) return "success"; // cepat
+  if (s.includes("online") && networkPing.value > 300) return "warn"; // lambat
   if (s.includes("offline")) return "danger";
 
   return "secondary";
