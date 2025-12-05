@@ -1259,16 +1259,16 @@ onMounted(async () => {
   );
 
   fetchPrinterStatus();
-  setInterval(fetchPrinterStatus, 2000);
+  setInterval(fetchPrinterStatus, 60000);
 
   fetchWebcamStatus();
-  setInterval(fetchWebcamStatus, 2000);
+  setInterval(fetchWebcamStatus, 60000);
 
   fetchNetworkStatus();
-  setInterval(fetchNetworkStatus, 2000);
+  setInterval(fetchNetworkStatus, 60000);
 
   fetchComputerStatus();
-  setInterval(fetchComputerStatus, 2000);
+  setInterval(fetchComputerStatus, 60000);
 });
 
 watch(showFullscreen, (val) => {
