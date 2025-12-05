@@ -1018,17 +1018,21 @@ async function initWebRTC() {
   }
   window.activePC = pc;
 
-  // High quality
   pc.addEventListener("negotiationneeded", async () => {
-    const params = pc.getSenders()[0]?.getParameters() || {};
-    if (!params.encodings) params.encodings = [{}];
+    const sender = pc.getSenders()[0];
+    if (!sender) return;
 
-    params.encodings[0].maxBitrate = 5_000_000;
-    params.encodings[0].minBitrate = 2_000_000;
-    params.encodings[0].maxFramerate = 30;
-    params.encodings[0].scaleResolutionDownBy = 1;
+    const params = sender.getParameters();
 
-    await pc.getSenders()[0].setParameters(params);
+    params.encodings = [
+      {
+        maxBitrate: 800_000, // bitrate rendah
+        maxFramerate: 15, // FPS diturunkan
+        scaleResolutionDownBy: 1, // tidak ubah dari 540p
+      },
+    ];
+
+    await sender.setParameters(params);
   });
 
   pc.oniceconnectionstatechange = () =>
