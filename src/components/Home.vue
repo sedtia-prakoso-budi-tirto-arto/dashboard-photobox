@@ -398,7 +398,7 @@
               <div class="flex items-center gap-2">
                 <InputNumber
                   v-model="minFace"
-                  :min="20"
+                  :min="1"
                   class="flex-1"
                   inputClass="w-full"
                 />
