@@ -218,12 +218,7 @@ const openNew = () => {
 };
 
 const saveTenant = async () => {
-  if (
-    !form.value.name ||
-    !form.value.mqttId ||
-    !form.value.serverUrl ||
-    !form.value.macAddress
-  ) {
+  if (!form.value.name || !form.value.serverUrl) {
     alert("Semua field wajib diisi");
     return;
   }

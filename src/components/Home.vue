@@ -683,7 +683,7 @@ function confirmPcOn() {
     rejectClass: "p-button-secondary",
     icon: "pi pi-exclamation-triangle",
     accept: () => {
-      client.publish("ptb/kontrol", `${mqttId.value} pc on`);
+      client.publish("ptb/kontrol", `${mqttId.value}pc on`);
     },
   });
 }
@@ -704,7 +704,7 @@ function confirmWakeOnLan() {
     rejectClass: "p-button-secondary",
     icon: "pi pi-exclamation-triangle",
     accept: () => {
-      client.publish("ptb/kontrol", `${mqttId.value} wol ${mac}`);
+      client.publish("ptb/kontrol", `${mqttId.value}wol ${mac}`);
     },
   });
 }
@@ -719,7 +719,7 @@ function confirmPcOff() {
     acceptClass: "p-button-danger",
     icon: "pi pi-exclamation-triangle",
     accept: () => {
-      client.publish("ptb/kontrol", `${mqttId.value} pc force off`);
+      client.publish("ptb/kontrol", `${mqttId.value}pc force off`);
     },
   });
 }
@@ -1053,8 +1053,8 @@ const setActiveMenu = (label) => {
         activeMenus.value.Lampu = newState;
 
         const cmd = newState
-          ? `${mqttId.value} lampu on`
-          : `${mqttId.value} lampu off`;
+          ? `${mqttId.value}lampu on`
+          : `${mqttId.value}lampu off`;
 
         client.publish("ptb/kontrol", cmd);
       },
@@ -1068,8 +1068,8 @@ const setActiveMenu = (label) => {
     const deviceName = label === "Kamera" ? "Kamera" : "Printer";
     const cmd =
       label === "Kamera"
-        ? `${mqttId.value} usb on`
-        : `${mqttId.value} printer on`;
+        ? `${mqttId.value}usb on`
+        : `${mqttId.value}printer on`;
 
     confirm.require({
       message: `Yakin ingin reconnect ${deviceName}?`,
