@@ -29,19 +29,74 @@
     <!-- CONTENT WRAPPER -->
     <main class="bg-white rounded-t-3xl px-6 py-6 text-gray-800 flex-1">
       <!-- TITLE -->
+      <!-- TITLE -->
       <section>
-        <div class="flex items-center justify-between mb-6">
-          <h2 class="text-xl font-bold tracking-tight text-gray-900">
-            Jatim Park 3
-          </h2>
+        <!-- HEADER ROW -->
+        <div class="flex items-start justify-between gap-4">
+          <!-- LEFT: TENANT CONTEXT -->
+          <div class="flex flex-col">
+            <!-- Tenant Name + Action -->
+            <div class="flex items-center gap-2 mt-0.5">
+              <h2 class="text-xl font-semibold text-gray-900 leading-tight">
+                {{ tenantStore.activeTenant?.name || "Pilih Tenant" }}
+              </h2>
 
+              <!-- Toggle Button -->
+              <button
+                class="text-gray-400 hover:text-gray-700 transition cursor-pointer"
+                @click="toggleTenantSelect"
+                aria-label="Ganti tenant"
+              >
+                <i
+                  class="pi pi-chevron-down text-sm transition-transform"
+                  :class="{ 'rotate-180': showTenantSelect }"
+                />
+              </button>
+            </div>
+
+            <!-- Inline Tenant Selector -->
+            <div
+              v-if="showTenantSelect"
+              class="mt-2 max-w-xs bg-gray-50 border border-gray-200 rounded-lg p-2"
+            >
+              <Select
+                v-model="selectedTenantId"
+                :options="tenants"
+                optionLabel="name"
+                optionValue="_id"
+                placeholder="Ganti tenant"
+                class="w-full"
+                @change="changeTenant"
+              />
+
+              <p class="text-[11px] text-gray-400 mt-1">
+                Mengganti tenant akan memuat ulang data
+              </p>
+            </div>
+          </div>
+
+          <!-- RIGHT: SETTINGS -->
           <Button
             variant="text"
             icon="pi pi-sliders-h"
-            label="Settings"
-            class="text-gray-700 hover:text-primary-600"
+            class="text-gray-500 hover:text-primary-600"
             @click="showSettings = true"
           />
+        </div>
+
+        <!-- COUNTDOWN -->
+        <div class="mb-6">
+          <span
+            class="text-xs"
+            :class="
+              refreshCountdown <= 10
+                ? 'text-red-500 font-semibold'
+                : 'text-gray-500'
+            "
+          >
+            Refresh otomatis dalam
+            <b>{{ refreshCountdown }}</b> detik
+          </span>
         </div>
 
         <!-- GRID MENU -->
@@ -49,7 +104,7 @@
           <div
             v-for="i in allMenuItems"
             :key="i.label"
-            @click="setActiveMenu(i.label)"
+            @click="handleMenuClick(i.label)"
             :class="[
               'flex flex-col items-center py-4 rounded-xl cursor-pointer transition shadow-sm',
               activeMenus[i.label]
@@ -84,23 +139,6 @@
                   class="text-[10px]"
                   rounded
                 />
-
-                <!-- DETAIL ERROR PRINTER -->
-                <small
-                  v-if="printerErrors.length"
-                  class="text-[9px] text-gray-500 mt-2 text-center"
-                >
-                  {{ printerErrors.join(", ") }}
-                </small>
-
-                <small
-                  v-else-if="
-                    printerStatus === 'Unknown' || printerStatus === 'Offline'
-                  "
-                  class="text-[9px] text-gray-500 mt-2 text-center"
-                >
-                  {{ detailUnknown("printer") }}
-                </small>
               </div>
             </template>
 
@@ -112,16 +150,6 @@
                   class="text-[10px]"
                   rounded
                 />
-
-                <!-- DETAIL JUMLAH WEBCAM -->
-                <small class="text-[9px] text-gray-500 mt-2 text-center">
-                  <template v-if="webcamStatus === 'Connected'">
-                    {{ webcamCount }} terdeteksi
-                  </template>
-                  <template v-else>
-                    {{ detailUnknown("webcam") }}
-                  </template>
-                </small>
               </div>
             </template>
 
@@ -134,26 +162,13 @@
                   class="text-[10px]"
                   rounded
                 />
-
-                <!-- DETAIL PING / SPEED -->
-                <small
-                  class="text-[9px] text-gray-500 mt-2 flex flex-col text-center"
-                >
-                  <template v-if="networkStatus === 'Online'">
-                    <span>PING: {{ networkPing ?? "-" }} ms</span>
-                  </template>
-
-                  <template v-else>
-                    <span>{{ detailUnknown("network") }}</span>
-                  </template>
-                </small>
               </div>
             </template>
 
             <!-- COMPUTER STATUS -->
             <template v-else-if="i.label === 'Komputer'">
-              <div class="flex flex-col items-center mt-1">
-                <!-- STATUS TAG -->
+              <div class="flex flex-col items-center mt-1 gap-1 relative">
+                <!-- STATUS -->
                 <Tag
                   :value="computerStatus"
                   :severity="computerColor"
@@ -161,29 +176,42 @@
                   rounded
                 />
 
-                <!-- DETAIL CPU / RAM / DISK -->
-                <small
-                  class="text-[9px] text-gray-500 mt-2 grid grid-cols-2 gap-x-2 text-center"
-                >
-                  <template
-                    v-if="
-                      computerStatus !== 'Offline' &&
-                      computerStatus !== 'Unknown'
-                    "
+                <!-- ACTION PANEL (MUNCUL SETELAH CARD DIKLIK) -->
+                <transition name="fade">
+                  <div
+                    v-if="showComputerActions"
+                    class="flex gap-1 mt-2"
+                    @click.stop
                   >
-                    <span>CPU: {{ computerCpu ?? "-" }}%</span>
-                    <span>RAM: {{ computerMem ?? "-" }}%</span>
-                    <span class="col-span-2"
-                      >DISK: {{ computerDisk ?? "-" }}%</span
-                    >
-                  </template>
+                    <!-- PC ON + WOL -->
+                    <template v-if="computerControlMode === 'power_on'">
+                      <Button
+                        label="PC ON"
+                        size="small"
+                        class="text-[10px]"
+                        @click="confirmPcOn"
+                      />
+                      <Button
+                        label="WOL"
+                        size="small"
+                        outlined
+                        class="text-[10px]"
+                        @click="confirmWakeOnLan"
+                      />
+                    </template>
 
-                  <template v-else>
-                    <span class="col-span-2">{{
-                      detailUnknown("computer")
-                    }}</span>
-                  </template>
-                </small>
+                    <!-- PC OFF -->
+                    <template v-else-if="computerControlMode === 'power_off'">
+                      <Button
+                        label="PC OFF"
+                        size="small"
+                        severity="danger"
+                        class="text-[10px]"
+                        @click="confirmPcOff"
+                      />
+                    </template>
+                  </div>
+                </transition>
               </div>
             </template>
 
@@ -273,6 +301,12 @@
                   { label: 'Normal', value: 'Normal' },
                   { label: 'Warning', value: 'Warning' },
                   { label: 'Error', value: 'Error' },
+                  { label: 'Online', value: 'Online' },
+                  { label: 'Offline', value: 'Offline' },
+                  { label: 'Connected', value: 'Connected' },
+                  { label: 'Disconnected', value: 'Disconnected' },
+                  { label: 'Idle / Ready', value: 'Idle / Ready' },
+                  { label: 'Unknown', value: 'Unknown' },
                   { label: 'ON', value: 'ON' },
                   { label: 'OFF', value: 'OFF' },
                 ]"
@@ -316,6 +350,19 @@
               showIcon
               placeholder="Pilih rentang tanggal"
               class="w-full"
+            />
+          </div>
+
+          <!-- RESET FILTER -->
+          <div class="flex items-end">
+            <Button
+              label="Reset"
+              icon="pi pi-filter-slash"
+              severity="secondary"
+              outlined
+              size="small"
+              class="h-[38px]"
+              @click="resetFilters"
             />
           </div>
         </div>
@@ -363,31 +410,6 @@
         <div class="flex flex-col gap-6">
           <!-- GRID SETTINGS -->
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <!-- DELAY -->
-            <div class="p-4 bg-white rounded-xl shadow border border-gray-300">
-              <div class="flex items-center gap-2 mb-2 text-primary-700">
-                <i class="pi pi-clock"></i>
-                <p class="font-semibold text-gray-700">Delay Deteksi</p>
-              </div>
-
-              <div class="flex items-center gap-2">
-                <InputNumber
-                  v-model="delay"
-                  :min="0"
-                  class="flex-1"
-                  inputClass="w-full"
-                />
-                <span class="text-gray-500 text-sm">detik</span>
-              </div>
-
-              <Button
-                label="Simpan"
-                size="small"
-                class="w-full mt-3"
-                @click="updateDelay"
-              />
-            </div>
-
             <!-- MIN FACE SIZE -->
             <div class="p-4 bg-white rounded-xl shadow border border-gray-300">
               <div class="flex items-center gap-2 mb-2 text-primary-700">
@@ -595,10 +617,134 @@
 </template>
 
 <script setup>
-import { ref, onMounted, nextTick, watch, computed } from "vue";
+import { ref, onMounted, nextTick, watch, computed, onUnmounted } from "vue";
 import axios from "axios";
 import mqtt from "mqtt";
 import { useConfirm } from "primevue/useconfirm";
+
+import { useTenantStore } from "../stores/tenantStore";
+
+const tenantStore = useTenantStore();
+const tenants = ref([]);
+const selectedTenantId = ref(tenantStore.activeTenant?._id);
+const showComputerActions = ref(false);
+
+async function loadTenants() {
+  const res = await axios.get(import.meta.env.VITE_API_TENANTS_URL);
+  tenants.value = res.data;
+  console.log(tenants.value);
+}
+
+function changeTenant() {
+  const tenant = tenants.value.find((t) => t._id === selectedTenantId.value);
+
+  if (!tenant) return;
+
+  tenantStore.setTenant(tenant);
+  showTenantSelect.value = false;
+}
+
+const computerControlMode = computed(() => {
+  const s = computerStatus.value.toLowerCase();
+
+  if (s === "unknown" || s === "offline") {
+    return "power_on";
+  }
+
+  if (["normal", "warning", "critical"].includes(s)) {
+    return "power_off";
+  }
+
+  return "none";
+});
+
+function handleMenuClick(label) {
+  // ===== KOMPUTER =====
+  if (label === "Komputer") {
+    showComputerActions.value = !showComputerActions.value;
+    return;
+  }
+
+  // ===== MENU LAIN (tetap) =====
+  if (!confirmableMenus.includes(label)) {
+    return;
+  }
+
+  setActiveMenu(label);
+}
+
+function confirmPcOn() {
+  confirm.require({
+    message: "Yakin ingin menyalakan PC?",
+    header: "Konfirmasi PC ON",
+    acceptLabel: "Yakin",
+    rejectLabel: "Batal",
+    acceptClass: "p-button-primary",
+    rejectClass: "p-button-secondary",
+    icon: "pi pi-exclamation-triangle",
+    accept: () => {
+      client.publish("ptb/kontrol", `${mqttId.value} pc on`);
+    },
+  });
+}
+
+function confirmWakeOnLan() {
+  const mac = tenantStore.activeTenant?.macAddress;
+  if (!mac) {
+    alert("MAC Address belum diset untuk tenant ini");
+    return;
+  }
+
+  confirm.require({
+    message: "Kirim Wake On LAN ke PC?",
+    header: "Konfirmasi WOL",
+    acceptLabel: "Kirim",
+    rejectLabel: "Batal",
+    acceptClass: "p-button-primary",
+    rejectClass: "p-button-secondary",
+    icon: "pi pi-exclamation-triangle",
+    accept: () => {
+      client.publish("ptb/kontrol", `${mqttId.value} wol ${mac}`);
+    },
+  });
+}
+
+function confirmPcOff() {
+  confirm.require({
+    message: "Yakin ingin mematikan PC secara paksa?",
+    header: "Konfirmasi PC OFF",
+    acceptLabel: "Matikan",
+    rejectLabel: "Batal",
+    rejectClass: "p-button-secondary",
+    acceptClass: "p-button-danger",
+    icon: "pi pi-exclamation-triangle",
+    accept: () => {
+      client.publish("ptb/kontrol", `${mqttId.value} pc force off`);
+    },
+  });
+}
+
+function resetFilters() {
+  // 1. Reset state filter
+  filterStatus.value = "all";
+  filterDevice.value = "all";
+  dateRange.value = null;
+
+  // 2. Reset pagination
+  page.value = 0;
+
+  // 3. Matikan SSE lama
+  if (logEventSource) {
+    logEventSource.close();
+    logEventSource = null;
+  }
+
+  // 4. Load ulang data TANPA filter
+  loadLogs({ page: 0, rows: rows.value });
+
+  // 5. Aktifkan kembali SSE
+  initLogStream();
+}
 
 const logs = ref([]);
 const totalLogs = ref(0);
@@ -606,15 +752,16 @@ const totalLogs = ref(0);
 const page = ref(0);
 const rows = ref(10);
 
-const API_URL = import.meta.env.VITE_API_URL;
+const API_URL = computed(() => tenantStore.apiBase);
+const mqttId = computed(() => tenantStore.mqttId);
 const SIGNALING_URL = import.meta.env.VITE_SIGNALING_URL;
+const LOGS_URL = import.meta.env.VITE_LOGS_URL;
 
 const hasStream = ref(false);
 
 const showSettings = ref(false);
 const monitorVideo = ref(null);
 
-const lampOn = ref(false);
 const isStreaming = ref(false);
 const allowReconnect = ref(true);
 const loadingStream = ref(false);
@@ -643,7 +790,17 @@ const sortOrder = ref(-1);
 const loadingUpload = ref(false);
 const loadingDelete = ref(false);
 
-const uploadCategory = ref("ajakan");
+const uploadCategory = ref("promosi");
+let logEventSource = null;
+
+const refreshCountdown = ref(null);
+let countdownTimer = null;
+
+const showTenantSelect = ref(false);
+
+function toggleTenantSelect() {
+  showTenantSelect.value = !showTenantSelect.value;
+}
 
 // Setting states
 const delay = ref(5);
@@ -651,22 +808,13 @@ const minFace = ref(120);
 
 const uploadRef = ref(null);
 const videoList = ref({
-  ajakan: [],
   promosi: [],
 });
 const selectedToDelete = ref({
-  ajakan: [],
   promosi: [],
 });
-const categoryOptions = [
-  { label: "Ajakan", value: "ajakan" },
-  { label: "Promosi", value: "promosi" },
-];
-const hasSelected = computed(
-  () =>
-    selectedToDelete.value.ajakan.length > 0 ||
-    selectedToDelete.value.promosi.length > 0
-);
+const categoryOptions = [{ label: "Promosi", value: "promosi" }];
+const hasSelected = computed(() => selectedToDelete.value.promosi.length > 0);
 const previewUpload = ref([]);
 
 const showFullscreen = ref(false);
@@ -674,23 +822,92 @@ const fullscreenVideo = ref(null);
 
 const confirm = useConfirm();
 
+function resetDeviceState() {
+  activeMenus.value = {
+    Jaringan: false,
+    Printer: false,
+    Komputer: false,
+    Kamera: false,
+    Lampu: false,
+  };
+
+  printerStatus.value = "Unknown";
+  webcamStatus.value = "Unknown";
+  networkStatus.value = "Unknown";
+  computerStatus.value = "Unknown";
+
+  printerErrors.value = [];
+  webcamCount.value = 0;
+  networkPing.value = null;
+  computerCpu.value = null;
+  computerMem.value = null;
+  computerDisk.value = null;
+}
+
+async function syncRefreshCountdown() {
+  const res = await axios.get(`${LOGS_URL}system/refresh-status`);
+
+  const { nextRunAt, serverTime } = res.data;
+  if (!nextRunAt) return;
+
+  const serverNow = new Date(serverTime).getTime();
+  const next = new Date(nextRunAt).getTime();
+
+  refreshCountdown.value = Math.max(Math.ceil((next - serverNow) / 1000), 0);
+
+  if (countdownTimer) clearInterval(countdownTimer);
+
+  countdownTimer = setInterval(() => {
+    refreshCountdown.value--;
+
+    if (refreshCountdown.value <= 0) {
+      clearInterval(countdownTimer);
+      syncRefreshCountdown(); // re-sync ke server
+    }
+  }, 1000);
+}
+
+const formatDate = (d) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
+    d.getDate()
+  ).padStart(2, "0")}`;
+
+const isDateFilterActive = computed(() => {
+  return (
+    Array.isArray(dateRange.value) && dateRange.value[0] && dateRange.value[1]
+  );
+});
+
 async function loadLogs(event) {
-  // Ketika user klik header untuk sort ASC/DESC
+  // =========================
+  // SORT HANDLING
+  // =========================
   if (event?.sortField !== null && event?.sortField !== undefined) {
     sortField.value = event.sortField;
     sortOrder.value = event.sortOrder;
   }
 
-  // Ketika user menghapus sort (third click / removableSort)
   if (event?.sortField === null) {
-    sortField.value = "createdAt"; // default
-    sortOrder.value = -1; // DESC
+    sortField.value = "createdAt";
+    sortOrder.value = -1;
   }
 
   const currentPage = event?.page ?? page.value;
   const pageSize = event?.rows ?? rows.value;
 
+  // =========================
+  // VALIDASI TENANT
+  // =========================
+  if (!tenantStore.activeTenant?._id) {
+    console.warn("Tenant belum dipilih");
+    return;
+  }
+
+  // =========================
+  // QUERY PARAMS
+  // =========================
   const params = new URLSearchParams({
+    tenantId: tenantStore.activeTenant._id, // 🔥 WAJIB
     page: currentPage + 1,
     limit: pageSize,
     status: filterStatus.value,
@@ -704,115 +921,26 @@ async function loadLogs(event) {
     dateRange.value[0] &&
     dateRange.value[1]
   ) {
-    params.append("startDate", dateRange.value[0].toISOString().split("T")[0]);
-    params.append("endDate", dateRange.value[1].toISOString().split("T")[0]);
+    params.append("startDate", formatDate(dateRange.value[0]));
+    params.append("endDate", formatDate(dateRange.value[1]));
   }
 
-  const res = await axios.get(`${import.meta.env.VITE_API_LOGS_URL}?${params}`);
+  // =========================
+  // REQUEST
+  // =========================
+  const res = await axios.get(
+    `${import.meta.env.VITE_API_LOGS_URL}?${params.toString()}`
+  );
 
   page.value = res.data.page - 1;
   rows.value = res.data.limit;
   totalLogs.value = res.data.total;
-
   logs.value = res.data.data;
 }
-
-const detailUnknown = (field) => {
-  if (field === "network") return "Tidak dapat mengukur koneksi";
-  if (field === "printer") return "Printer tidak terdeteksi";
-  if (field === "webcam") return "Kamera tidak terdeteksi";
-  if (field === "computer") return "Sistem tidak merespons";
-  return "Status tidak diketahui";
-};
 
 const lampStatus = computed(() => {
   return activeMenus.value["Lampu"] ? "ON" : "OFF";
 });
-
-async function fetchComputerStatus() {
-  try {
-    const res = await axios.get(API_URL + "/computer/status");
-
-    if (res.data.status === "success") {
-      const d = res.data.data;
-
-      computerCpu.value = d.cpu;
-      computerMem.value = d.memory;
-      computerDisk.value = d.disk;
-
-      // Tentukan status final komputer
-      if (
-        d.cpu_status === "Critical" ||
-        d.memory_status === "Critical" ||
-        d.disk_status === "Critical"
-      ) {
-        computerStatus.value = "Critical";
-      } else if (
-        d.cpu_status === "Warning" ||
-        d.memory_status === "Warning" ||
-        d.disk_status === "Warning"
-      ) {
-        computerStatus.value = "Warning";
-      } else {
-        computerStatus.value = "Normal";
-      }
-    } else {
-      computerStatus.value = "Offline";
-    }
-  } catch (e) {
-    computerStatus.value = "Offline";
-  }
-}
-
-async function fetchNetworkStatus() {
-  try {
-    const res = await axios.get(API_URL + "/network/speedtest-lite");
-
-    if (res.data.status === "success") {
-      const d = res.data.data;
-
-      networkStatus.value = d.online ? "Online" : "Offline";
-      networkPing.value = d.ping_ms;
-    } else {
-      networkStatus.value = "Offline";
-    }
-  } catch (e) {
-    networkStatus.value = "Offline";
-  }
-}
-
-async function fetchWebcamStatus() {
-  try {
-    const res = await axios.get(API_URL + "/webcam/status");
-
-    if (res.data.status === "success") {
-      const d = res.data.data;
-
-      webcamStatus.value = d.connected ? "Connected" : "Disconnected";
-      webcamCount.value = d.count || 0;
-    } else {
-      webcamStatus.value = "Error";
-    }
-  } catch (e) {
-    webcamStatus.value = "Offline";
-  }
-}
-
-async function fetchPrinterStatus() {
-  try {
-    const res = await axios.get(API_URL + "/printer/status");
-    if (res.data.status === "success") {
-      printerStatus.value = res.data.data.status;
-      printerErrors.value = res.data.data.errors;
-    } else {
-      printerStatus.value = "Error";
-      printerErrors.value = ["Tidak dapat membaca printer"];
-    }
-  } catch (e) {
-    printerStatus.value = "Offline";
-    printerErrors.value = ["Tidak dapat terhubung"];
-  }
-}
 
 const lampColor = computed(() => {
   return activeMenus.value["Lampu"] ? "success" : "danger";
@@ -832,8 +960,7 @@ const computerColor = computed(() => {
 const networkColor = computed(() => {
   const s = networkStatus.value.toLowerCase();
 
-  if (s.includes("online") && networkPing.value <= 300) return "success"; // cepat
-  if (s.includes("online") && networkPing.value > 300) return "warn"; // lambat
+  if (s.includes("online")) return "success";
   if (s.includes("offline")) return "danger";
 
   return "secondary";
@@ -842,8 +969,8 @@ const networkColor = computed(() => {
 const webcamColor = computed(() => {
   const s = webcamStatus.value.toLowerCase();
 
-  if (s.includes("connected")) return "success";
   if (s.includes("disconnected")) return "danger";
+  if (s.includes("connected")) return "success";
   if (s.includes("offline")) return "danger";
   if (s.includes("error")) return "danger";
 
@@ -905,41 +1032,61 @@ function cleanupWebRTC() {
   console.log("[WEB] WebRTC Stopped.");
 }
 
+const confirmableMenus = ["Printer", "Kamera", "Lampu"];
+
 const setActiveMenu = (label) => {
-  const newState = !activeMenus.value[label];
-  const actionText = newState ? "mengaktifkan" : "menonaktifkan";
+  // ===== LAMPU (STATEFUL) =====
+  if (label === "Lampu") {
+    const newState = !activeMenus.value.Lampu;
+    const actionText = newState ? "menyalakan" : "mematikan";
 
-  confirm.require({
-    message: `Yakin ingin ${actionText} ${label}?`,
-    header: "Konfirmasi",
-    icon: "pi pi-exclamation-triangle",
-    acceptLabel: "Yakin",
-    rejectLabel: "Batal",
-    acceptClass: "p-button-primary",
-    rejectClass: "p-button-secondary",
+    confirm.require({
+      message: `Yakin ingin ${actionText} Lampu?`,
+      header: "Konfirmasi",
+      acceptLabel: "Yakin",
+      rejectLabel: "Batal",
+      acceptClass: "p-button-primary",
+      rejectClass: "p-button-secondary",
+      icon: "pi pi-exclamation-triangle",
 
-    accept: () => {
-      // Ubah state
-      activeMenus.value[label] = newState;
+      accept: () => {
+        activeMenus.value.Lampu = newState;
 
-      // Kirim MQTT sesuai label
-      if (label === "Lampu") {
-        const status = newState ? "lampu on" : "lampu off";
-        lampOn.value = newState;
-        client.publish("ptb/kontrol", status);
-      } else if (label === "Kamera") {
-        const status = newState ? "usb on" : "usb off";
-        client.publish("ptb/kontrol", status);
-      } else if (label === "Printer") {
-        const status = newState ? "printer on" : "printer off";
-        client.publish("ptb/kontrol", status);
-      }
-    },
+        const cmd = newState
+          ? `${mqttId.value} lampu on`
+          : `${mqttId.value} lampu off`;
 
-    reject: () => {
-      // Tidak mengubah apa pun jika dibatalkan
-    },
-  });
+        client.publish("ptb/kontrol", cmd);
+      },
+    });
+
+    return;
+  }
+
+  // ===== KAMERA & PRINTER (RECONNECT ONLY) =====
+  if (label === "Kamera" || label === "Printer") {
+    const deviceName = label === "Kamera" ? "Kamera" : "Printer";
+    const cmd =
+      label === "Kamera"
+        ? `${mqttId.value} usb on`
+        : `${mqttId.value} printer on`;
+
+    confirm.require({
+      message: `Yakin ingin reconnect ${deviceName}?`,
+      header: "Konfirmasi",
+      acceptLabel: "Yakin",
+      rejectLabel: "Batal",
+      acceptClass: "p-button-primary",
+      rejectClass: "p-button-secondary",
+      icon: "pi pi-exclamation-triangle",
+
+      accept: () => {
+        client.publish("ptb/kontrol", cmd);
+      },
+    });
+
+    return;
+  }
 };
 
 const client = mqtt.connect(import.meta.env.VITE_MQTT_URL, {
@@ -959,7 +1106,7 @@ client.on("connect", () => {
   console.log("MQTT Connected");
 
   // subscribe jika Anda ingin mendapat feedback
-  client.subscribe("ptb/kontrol");
+  client.subscribe("ptb/status");
 });
 
 async function openMonitorPreview() {
@@ -1136,34 +1283,26 @@ function onFileSelected(event) {
 }
 
 async function loadSettings() {
-  const res = await axios.get(API_URL + "/settings/get");
+  const res = await axios.get(API_URL.value + "/settings/get");
   delay.value = res.data.delay;
   minFace.value = res.data.min_face;
 }
 
 // LOAD VIDEO LIST
 async function loadVideos() {
-  const res = await axios.get(API_URL + "/video/list");
+  const res = await axios.get(API_URL.value + "/video/list");
   videoList.value = res.data;
 
   // Reset checkbox state
   selectedToDelete.value = {
-    ajakan: [],
     promosi: [],
   };
-}
-
-// UPDATE DELAY
-async function updateDelay() {
-  await axios.post(API_URL + "/settings/set-delay?seconds=" + delay.value);
-  await loadSettings();
-  alert("Delay berhasil diupdate!");
 }
 
 // UPDATE MIN FACE SIZE
 async function updateMinFace() {
   await axios.post(
-    API_URL + "/settings/set-min-face-size?size=" + minFace.value
+    API_URL.value + "/settings/set-min-face-size?size=" + minFace.value
   );
   await loadSettings();
   alert("Minimal face size berhasil diupdate!");
@@ -1181,7 +1320,7 @@ async function uploadVideos() {
     for (const f of files) form.append("files", f);
 
     await axios.post(
-      API_URL + "/video/upload?category=" + uploadCategory.value,
+      API_URL.value + "/video/upload?category=" + uploadCategory.value,
       form,
       { headers: { "Content-Type": "multipart/form-data" } }
     );
@@ -1201,18 +1340,12 @@ async function uploadVideos() {
 async function deleteSelectedVideos() {
   loadingDelete.value = true; // MULAI LOADING
 
-  const lists = selectedToDelete.value;
-
   try {
-    for (const category of ["ajakan", "promosi"]) {
-      for (const vid of lists[category]) {
-        await axios.post(
-          API_URL +
-            `/video/delete?category=${category}&filename=${encodeURIComponent(
-              vid
-            )}`
-        );
-      }
+    for (const vid of selectedToDelete.value.promosi) {
+      await axios.post(
+        API_URL.value +
+          `/video/delete?category=promosi&filename=${encodeURIComponent(vid)}`
+      );
     }
 
     alert("Video terpilih berhasil dihapus!");
@@ -1230,15 +1363,11 @@ async function deleteAllVideos() {
   loadingDelete.value = true;
 
   try {
-    for (const category of ["ajakan", "promosi"]) {
-      for (const vid of videoList.value[category]) {
-        await axios.post(
-          API_URL +
-            `/video/delete?category=${category}&filename=${encodeURIComponent(
-              vid
-            )}`
-        );
-      }
+    for (const vid of videoList.value.promosi) {
+      await axios.post(
+        API_URL.value +
+          `/video/delete?category=promosi&filename=${encodeURIComponent(vid)}`
+      );
     }
 
     alert("Semua video berhasil dihapus!");
@@ -1253,10 +1382,15 @@ async function deleteAllVideos() {
 const statusSeverity = {
   Normal: "success",
   ON: "success",
+  Online: "success",
+  Connected: "success",
   Warning: "warn",
   Error: "danger",
   OFF: "danger",
+  Critical: "danger",
+  Offline: "danger",
   Unknown: "secondary",
+  Disconnected: "danger",
 };
 
 const activeMenus = ref({
@@ -1275,33 +1409,110 @@ const allMenuItems = [
   { label: "Lampu", icon: "pi-lightbulb" },
 ];
 
-onMounted(async () => {
-  await loadSettings();
-  loadVideos();
+function initLogStream() {
+  if (isDateFilterActive.value) {
+    console.log("SSE disabled due to date filter");
+    return;
+  }
 
-  loadLogs();
-  setInterval(
-    () =>
-      loadLogs({
-        page: page.value,
-        rows: rows.value,
-        sortField: sortField.value,
-        sortOrder: sortOrder.value,
-      }),
-    3000
+  if (!tenantStore.activeTenant?._id) return;
+
+  if (logEventSource) {
+    logEventSource.close();
+  }
+
+  logEventSource = new EventSource(
+    `${LOGS_URL}api/logs/stream?tenantId=${tenantStore.activeTenant._id}`
   );
 
-  fetchPrinterStatus();
-  setInterval(fetchPrinterStatus, 60000);
+  logEventSource.onmessage = (event) => {
+    const newLog = JSON.parse(event.data);
 
-  fetchWebcamStatus();
-  setInterval(fetchWebcamStatus, 60000);
+    applyLogToStatus(newLog);
 
-  fetchNetworkStatus();
-  setInterval(fetchNetworkStatus, 60000);
+    // filter UI tetap boleh (status/device)
+    if (
+      (filterStatus.value !== "all" && newLog.status !== filterStatus.value) ||
+      (filterDevice.value !== "all" && newLog.device !== filterDevice.value)
+    ) {
+      return;
+    }
 
-  fetchComputerStatus();
-  setInterval(fetchComputerStatus, 60000);
+    logs.value.unshift(newLog);
+
+    if (logs.value.length > rows.value) {
+      logs.value.pop();
+    }
+
+    totalLogs.value += 1;
+  };
+
+  logEventSource.onerror = () => {
+    logEventSource.close();
+    setTimeout(initLogStream, 3000);
+  };
+}
+
+async function loadLatestDeviceStatus() {
+  try {
+    const res = await axios.get(
+      `${LOGS_URL}logs/latest-status?tenantId=${tenantStore.activeTenant._id}`
+    );
+
+    console.log("Latest status:", res.data);
+
+    Object.values(res.data).forEach((log) => {
+      applyLogToStatus(log);
+    });
+  } catch (e) {
+    console.warn("Gagal load status terakhir device", e);
+  }
+}
+
+function applyLogToStatus(log) {
+  if (log.tenantId !== tenantStore.activeTenant._id) return;
+
+  switch (log.device) {
+    case "printer":
+      printerStatus.value = log.status;
+      activeMenus.value.Printer =
+        log.status !== "Unknown" && log.status !== "Offline";
+      break;
+
+    case "webcam":
+      webcamStatus.value = log.status;
+      activeMenus.value.Kamera = log.status === "Connected";
+      break;
+
+    case "network":
+      networkStatus.value = log.status;
+      activeMenus.value.Jaringan = log.status === "Online";
+      break;
+
+    case "computer":
+      computerStatus.value = log.status;
+      activeMenus.value.Komputer = log.status !== "Offline";
+      break;
+
+    case "lamp":
+      activeMenus.value.Lampu = log.status === "ON";
+      break;
+  }
+}
+
+onMounted(async () => {
+  await loadTenants();
+  syncRefreshCountdown();
+  await loadVideos();
+  await loadSettings();
+
+  await loadLatestDeviceStatus();
+
+  // load awal (pagination tetap jalan)
+  await loadLogs();
+
+  // realtime log
+  initLogStream();
 });
 
 watch(showFullscreen, (val) => {
@@ -1310,15 +1521,48 @@ watch(showFullscreen, (val) => {
   }
 });
 
+watch([filterStatus, filterDevice], () => {
+  page.value = 0;
+
+  loadLogs({ page: 0, rows: rows.value });
+});
+
 watch(
-  [filterStatus, filterDevice, dateRange],
-  () => {
+  () => tenantStore.activeTenant,
+  async () => {
+    resetDeviceState();
+    syncRefreshCountdown();
+    logs.value = [];
     page.value = 0;
 
-    loadLogs({ page: 0, rows: rows.value });
-  },
-  { deep: true }
+    if (logEventSource) logEventSource.close();
+
+    await loadLatestDeviceStatus();
+    await loadLogs({ page: 0, rows: rows.value });
+    initLogStream();
+  }
 );
+
+watch(dateRange, (val) => {
+  if (!Array.isArray(val)) return;
+  if (!val[0] || !val[1]) return;
+
+  page.value = 0;
+  loadLogs({ page: 0, rows: rows.value });
+});
+
+watch(
+  () => activeMenus.value,
+  () => {
+    showComputerActions.value = false;
+  }
+);
+
+onUnmounted(() => {
+  if (logEventSource) {
+    logEventSource.close();
+  }
+});
 </script>
 
 <style>
