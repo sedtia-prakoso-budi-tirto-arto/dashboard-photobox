@@ -1541,6 +1541,8 @@ watch(
     await loadLatestDeviceStatus();
     await loadLogs({ page: 0, rows: rows.value });
     initLogStream();
+    await loadVideos();
+    await loadSettings();
   }
 );
 
