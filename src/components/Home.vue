@@ -36,15 +36,17 @@
           <!-- LEFT: TENANT CONTEXT -->
           <div class="flex flex-col">
             <!-- Tenant Name + Action -->
-            <div class="flex items-center gap-2 mt-0.5">
+            <div
+              class="flex items-center gap-2 mt-0.5 cursor-pointer"
+              @click="toggleTenantSelect"
+            >
               <h2 class="text-xl font-semibold text-gray-900 leading-tight">
                 {{ tenantStore.activeTenant?.name || "Pilih Tenant" }}
               </h2>
 
               <!-- Toggle Button -->
               <button
-                class="text-gray-400 hover:text-gray-700 transition cursor-pointer"
-                @click="toggleTenantSelect"
+                class="text-gray-400 hover:text-gray-700 transition"
                 aria-label="Ganti tenant"
               >
                 <i
@@ -980,7 +982,7 @@ const webcamColor = computed(() => {
 const printerColor = computed(() => {
   const s = printerStatus.value.toLowerCase();
 
-  if (s.includes("idle") || s.includes("ready")) return "success";
+  if (s.includes("online")) return "success";
   if (s.includes("printing")) return "info";
   if (s.includes("warmup")) return "warn";
   if (s.includes("error")) return "danger";
@@ -1501,15 +1503,14 @@ function applyLogToStatus(log) {
 }
 
 onMounted(async () => {
+  // load awal (pagination tetap jalan)
+  await loadLogs();
+
+  await loadLatestDeviceStatus();
   await loadTenants();
   syncRefreshCountdown();
   await loadVideos();
   await loadSettings();
-
-  await loadLatestDeviceStatus();
-
-  // load awal (pagination tetap jalan)
-  await loadLogs();
 
   // realtime log
   initLogStream();
